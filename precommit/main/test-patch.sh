@@ -86,7 +86,7 @@ function setup_defaults
       GIT=${GIT:-git}
       EGREP=${EGREP:-/usr/xpg4/bin/egrep}
       GREP=${GREP:-/usr/xpg4/bin/grep}
-      PATCH=${PATCH:-patch}
+      PATCH=${PATCH:-/usr/gnu/bin/patch}
       DIFF=${DIFF:-/usr/gnu/bin/diff}
       FILE=${FILE:-file}
     ;;
@@ -930,6 +930,18 @@ function parse_args
   fi
 
   GITDIFFLINES=${PATCH_DIR}/gitdifflines.txt
+}
+
+## @description  Check execution environment such as software versions
+## @audience     private
+## @stability    evolving
+## @replaceable  no
+function check_environment
+{
+  if [[ $BASH_VERSION < "3.2" ]]; then
+    yetus_error "Bash 3.2+ is required."
+    exit 1
+  fi
 }
 
 ## @description  Locate the pom.xml file for a given directory
@@ -2935,6 +2947,8 @@ big_console_header "Bootstrapping test harness"
 setup_defaults
 
 parse_args "$@"
+
+check_environment
 
 importplugins
 
