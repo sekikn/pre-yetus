@@ -70,7 +70,7 @@ Similarly, there are other functions that may be defined during the test-patch r
 * pluginname_tests
     - executed after the unit tests have completed.
 
-    HINT: It is recommend to make the pluginname relatively small, XX characters at the most.  Otherwise the ASCII output table may be skewed.
+    HINT: It is recommend to make the pluginname relatively small, 10 characters at the most.  Otherwise the ASCII output table may be skewed.
 
 
 # Configuring for Other Projects
@@ -138,7 +138,7 @@ For example, let's say your project uses a special configuration to skip unit te
 
 
 ```bash
-function personality
+function personality_modules
 {
     local repostatus=$1
     local testtype=$2
