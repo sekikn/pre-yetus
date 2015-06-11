@@ -84,7 +84,6 @@ function setup_defaults
       SED=${SED:-/usr/xpg4/bin/sed}
       WGET=${WGET:-wget}
       GIT=${GIT:-git}
-      EGREP=${EGREP:-/usr/xpg4/bin/egrep}
       GREP=${GREP:-/usr/xpg4/bin/grep}
       PATCH=${PATCH:-patch}
       DIFF=${DIFF:-/usr/gnu/bin/diff}
@@ -96,7 +95,6 @@ function setup_defaults
       SED=${SED:-sed}
       WGET=${WGET:-wget}
       GIT=${GIT:-git}
-      EGREP=${EGREP:-egrep}
       GREP=${GREP:-grep}
       PATCH=${PATCH:-patch}
       DIFF=${DIFF:-diff}
@@ -1467,7 +1465,7 @@ function guess_patch_file
     yetus_debug "file magic says it's a diff."
     return 0
   fi
-  fileOutput=$(head -n 1 "${patch}" | "${EGREP}" "^(From [a-z0-9]* Mon Sep 17 00:00:00 2001)|(diff .*)|(Index: .*)$")
+  fileOutput=$(head -n 1 "${patch}" | "${GREP}" -E "^(From [a-z0-9]* Mon Sep 17 00:00:00 2001)|(diff .*)|(Index: .*)$")
   if [[ $? == 0 ]]; then
     yetus_debug "first line looks like a patch file."
     return 0
@@ -2064,9 +2062,9 @@ function count_javac_probs
     ;;
     ant)
       #shellcheck disable=SC2016
-      val1=$(${EGREP} "\[javac\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val1=$(${GREP} -E "\[javac\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       #shellcheck disable=SC2016
-      val2=$(${EGREP} "\[javac\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val2=$(${GREP} -E "\[javac\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       echo $((val1+val2))
     ;;
   esac
@@ -2179,13 +2177,13 @@ function count_javadoc_probs
   case ${BUILDTOOL} in
     maven)
       #shellcheck disable=SC2016,SC2046
-      ${EGREP} "^[0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$1} END {print sum}'
+      ${GREP} -E "^[0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$1} END {print sum}'
     ;;
     ant)
       #shellcheck disable=SC2016
-      val1=$(${EGREP} "\[javadoc\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val1=$(${GREP} -E "\[javadoc\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       #shellcheck disable=SC2016
-      val2=$(${EGREP} "\[javadoc\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val2=$(${GREP} -E "\[javadoc\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       echo $((val1+val2))
     ;;
   esac
