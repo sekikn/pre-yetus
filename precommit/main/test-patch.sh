@@ -670,7 +670,7 @@ function testpatch_usage
   echo "--git-cmd=<cmd>        The 'git' command to use (default 'git')"
   echo "--grep-cmd=<cmd>       The 'grep' command to use (default 'grep')"
   echo "--mvn-cmd=<cmd>        The 'mvn' command to use (default \${MAVEN_HOME}/bin/mvn, or 'mvn')"
-  echo "--patch-cmd=<cmd>      The 'patch' command to use (default 'patch')"
+  echo "--patch-cmd=<cmd>      The GNU-compatible 'patch' command to use (default 'patch')"
   echo "--ps-cmd=<cmd>         The 'ps' command to use (default 'ps')"
   echo "--sed-cmd=<cmd>        The 'sed' command to use (default 'sed')"
 
