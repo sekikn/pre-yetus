@@ -79,7 +79,6 @@ function setup_defaults
   # Solaris needs POSIX, not SVID
   case ${OSTYPE} in
     SunOS)
-      PS=${PS:-ps}
       AWK=${AWK:-/usr/xpg4/bin/awk}
       SED=${SED:-/usr/xpg4/bin/sed}
       WGET=${WGET:-wget}
@@ -91,7 +90,6 @@ function setup_defaults
       FILE=${FILE:-file}
     ;;
     *)
-      PS=${PS:-ps}
       AWK=${AWK:-awk}
       SED=${SED:-sed}
       WGET=${WGET:-wget}
@@ -671,7 +669,6 @@ function testpatch_usage
   echo "--grep-cmd=<cmd>       The 'grep' command to use (default 'grep')"
   echo "--mvn-cmd=<cmd>        The 'mvn' command to use (default \${MAVEN_HOME}/bin/mvn, or 'mvn')"
   echo "--patch-cmd=<cmd>      The 'patch' command to use (default 'patch')"
-  echo "--ps-cmd=<cmd>         The 'ps' command to use (default 'ps')"
   echo "--sed-cmd=<cmd>        The 'sed' command to use (default 'sed')"
 
   echo
@@ -804,9 +801,6 @@ function parse_args
       ;;
       --project=*)
         PROJECT_NAME=${i#*=}
-      ;;
-      --ps-cmd=*)
-        PS=${i#*=}
       ;;
       --reexec)
         REEXECED=true
