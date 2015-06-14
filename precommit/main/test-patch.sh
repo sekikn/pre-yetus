@@ -72,6 +72,7 @@ function setup_defaults
   ISSUE_RE='^(YETUS)-[0-9]+$'
   TIMER=$(date +"%s")
   PATCHURL=""
+  PATCH_AS_PR=false
   OSTYPE=$(uname -s)
   BUILDTOOL=maven
   BUGSYSTEM=jira
@@ -655,6 +656,7 @@ function testpatch_usage
   echo "--personality=<file>   The personality file to load"
   echo "--plugins=<dir>        A directory of user provided plugins. see test-patch.d for examples (default empty)"
   echo "--project=<name>       The short name for project currently using test-patch (default 'yetus')"
+  echo "--patch-as-pr          Download the patch as a pull request from GitHub, rather than an attachment from JIRA"
   echo "--resetrepo            Forcibly clean the repo"
   echo "--run-tests            Run all relevant tests below the base directory"
   echo "--skip-system-plugins  Do not load plugins from ${BINDIR}/test-patch.d"
@@ -807,6 +809,9 @@ function parse_args
       ;;
       --ps-cmd=*)
         PS=${i#*=}
+      ;;
+      --patch-as-pr)
+        PATCH_AS_PR=true
       ;;
       --reexec)
         REEXECED=true
@@ -1386,6 +1391,7 @@ function determine_needed_tests
 function locate_patch
 {
   local notSureIfPatch=false
+  local relativePatchURL
   yetus_debug "locate patch"
 
   if [[ -f ${PATCH_OR_ISSUE} ]]; then
@@ -1411,12 +1417,17 @@ function locate_patch
         fi
       fi
 
-      relativePatchURL=$(${GREP} -o '"/jira/secure/attachment/[0-9]*/[^"]*' "${PATCH_DIR}/jira" | ${GREP} -v -e 'htm[l]*$' | sort | tail -1 | ${GREP} -o '/jira/secure/attachment/[0-9]*/[^"]*')
-      PATCHURL="http://issues.apache.org${relativePatchURL}"
-      if [[ ! ${PATCHURL} =~ \.patch$ ]]; then
-        notSureIfPatch=true
+      if [[ ${PATCH_AS_PR} == true ]]; then
+        PATCHURL=$(${GREP} -o 'https://github.com/apache/[^/]*/pull/[0-9]*\.patch' "${PATCH_DIR}/jira" | tail -1)
+        patchNum=$(echo "${PATCHURL}" | awk -F/ '{ print substr($NF, 0, length($NF)-6) }')
+      else
+        relativePatchURL=$(${GREP} -o '"/jira/secure/attachment/[0-9]*/[^"]*' "${PATCH_DIR}/jira" | ${GREP} -v -e 'htm[l]*$' | sort | tail -1 | ${GREP} -o '/jira/secure/attachment/[0-9]*/[^"]*')
+        PATCHURL="http://issues.apache.org${relativePatchURL}"
+        if [[ ! ${PATCHURL} =~ \.patch$ ]]; then
+          notSureIfPatch=true
+        fi
+        patchNum=$(echo "${PATCHURL}" | ${GREP} -o '[0-9]*/' | ${GREP} -o '[0-9]*')
       fi
-      patchNum=$(echo "${PATCHURL}" | ${GREP} -o '[0-9]*/' | ${GREP} -o '[0-9]*')
       echo "${ISSUE} patch is being downloaded at $(date) from"
     fi
     echo "${PATCHURL}"

@@ -20,6 +20,8 @@ PATCH_BRANCH_DEFAULT=master
 ISSUE_RE='^TAJO-[0-9]+$'
 #shellcheck disable=SC2034
 HOW_TO_CONTRIBUTE="https://cwiki.apache.org/confluence/display/TAJO/How+to+Contribute+to+Tajo"
+#shellcheck disable=SC2034
+PATCH_AS_PR=true
 
 function personality_modules
 {
