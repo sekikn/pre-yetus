@@ -20,6 +20,8 @@ PATCH_BRANCH_DEFAULT=master
 ISSUE_RE='^FLINK-[0-9]+$'
 #shellcheck disable=SC2034
 HOW_TO_CONTRIBUTE=""
+#shellcheck disable=SC2034
+STATUS_RE="In Progress"
 
 add_plugin flinklib
 

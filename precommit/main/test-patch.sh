@@ -72,6 +72,7 @@ function setup_defaults
   ISSUE_RE='^(YETUS)-[0-9]+$'
   TIMER=$(date +"%s")
   PATCHURL=""
+  STATUS_RE="Patch Available"
   OSTYPE=$(uname -s)
   BUILDTOOL=maven
   BUGSYSTEM=jira
@@ -631,7 +632,7 @@ function testpatch_usage
   echo
   echo "Where:"
   echo "  patch-file is a local patch file containing the changes to test"
-  echo "  issue-number is a 'Patch Available' JIRA defect number (e.g. '${up}-9902') to test"
+  echo "  issue-number is a JIRA defect number (e.g. '${up}-9902') to test"
   echo "  http is an HTTP address to download the patch file"
   echo
   echo "Options:"
@@ -658,6 +659,7 @@ function testpatch_usage
   echo "--resetrepo            Forcibly clean the repo"
   echo "--run-tests            Run all relevant tests below the base directory"
   echo "--skip-system-plugins  Do not load plugins from ${BINDIR}/test-patch.d"
+  echo "--status-re=<expr>     egrep regular expression to specify acceptable issue status when trying to find a jira ref (default 'Patch Available')"
   echo "--summarize=<bool>     Allow tests to summarize results"
   echo "--testlist=<list>      Specify which subsystem tests to use (comma delimited)"
   echo "--test-parallel=<bool> Run multiple tests in parallel (default false in developer mode, true in Jenkins mode)"
@@ -819,6 +821,9 @@ function parse_args
       ;;
       --skip-system-plugins)
         LOAD_SYSTEM_PLUGINS=false
+      ;;
+      --status-re=*)
+        STATUS_RE=${i#*=}
       ;;
       --summarize=*)
         ALLOWSUMMARIES=${i#*=}
@@ -1402,12 +1407,12 @@ function locate_patch
         cleanup_and_exit 1
       fi
 
-      if [[ $(${GREP} -c 'Patch Available' "${PATCH_DIR}/jira") == 0 ]] ; then
+      if [[ $(${GREP} -c -E "${STATUS_RE}" "${PATCH_DIR}/jira") == 0 ]] ; then
         if [[ ${JENKINS} == true ]]; then
-          yetus_error "ERROR: ${PATCH_OR_ISSUE} is not \"Patch Available\"."
+          yetus_error "ERROR: ${PATCH_OR_ISSUE}'s status does not match \"${STATUS_RE}\"."
           cleanup_and_exit 1
         else
-          yetus_error "WARNING: ${PATCH_OR_ISSUE} is not \"Patch Available\"."
+          yetus_error "WARNING: ${PATCH_OR_ISSUE}'s status does not match \"${STATUS_RE}\"."
         fi
       fi
 
