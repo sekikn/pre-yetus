@@ -664,6 +664,7 @@ function testpatch_usage
   echo "--test-threads=<int>   Number of tests to run in parallel (default defined in ${PROJECT_NAME} build)"
 
   echo "Shell binary overrides:"
+  echo "--ant-cmd=<cmd>        The 'ant' command to use (default \${ANT_HOME}/bin/ant, or 'ant')"
   echo "--awk-cmd=<cmd>        The 'awk' command to use (default 'awk')"
   echo "--diff-cmd=<cmd>       The GNU-compatible 'diff' command to use (default 'diff')"
   echo "--file-cmd=<cmd>       The 'file' command to use (default 'file')"
@@ -705,6 +706,9 @@ function parse_args
 
   for i in "$@"; do
     case ${i} in
+      --ant-cmd=*)
+        ANT=${i#*=}
+      ;;
       --awk-cmd=*)
         AWK=${i#*=}
       ;;
