@@ -1679,7 +1679,7 @@ function module_status
     MODULE_STATUS_LOG[${index}]="${log}"
     MODULE_STATUS_MSG[${index}]="${*}"
   else
-    yetus_error "ASSERT: module_status given bad index"
+    yetus_error "ASSERT: module_status given bad index: ${index}"
     local frame=0
     while caller $frame; do
       ((frame++));
@@ -2534,7 +2534,7 @@ function output_to_console
 {
   local result=$1
   shift
-  local i
+  local i=0
   local ourstring
   local vote
   local subs

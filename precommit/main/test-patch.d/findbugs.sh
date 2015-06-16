@@ -124,23 +124,6 @@ function findbugs_runner
       continue
     fi
 
-    if [[ -z ${FINDBUGS_VERSION}
-      && ${name} == branch ]]; then
-      case ${BUILDTOOL} in
-        maven)
-          #shellcheck disable=SC2016
-          FINDBUGS_VERSION=$(${AWK} 'match($0, /findbugs-maven-plugin:[^:]*:findbugs/) { print substr($0, RSTART + 22, RLENGTH - 31); exit }' \
-                "${file}")
-        ;;
-        ant)
-          FINDBUGS_VERSION=$(${GREP} -i "BugCollection version=" "${file}" \
-            | cut -f2 -d\" \
-            | cut -f1 -d\" )
-        ;;
-      esac
-      add_footer_table findbugs "v${FINDBUGS_VERSION}"
-    fi
-
     warnings_file="${PATCH_DIR}/${name}-findbugs-${fn}-warnings"
 
     cp -p "${file}" "${warnings_file}.xml"
@@ -171,6 +154,18 @@ function findbugs_runner
       ((result = result + 1))
     fi
 
+    if [[ -z ${FINDBUGS_VERSION}
+        && ${name} == branch ]]; then
+        set -x
+      FINDBUGS_VERSION=$(${GREP} -i "BugCollection version=" "${warnings_file}.xml" \
+        | cut -f2 -d\" \
+        | cut -f1 -d\" )
+      if [[ -n ${FINDBUGS_VERSION} ]]; then
+        add_footer_table findbugs "v${FINDBUGS_VERSION}"
+      fi
+    fi
+
+
     ((i=i+1))
   done
   return ${result}
@@ -186,7 +181,7 @@ function findbugs_preapply
 {
   local fn
   local module
-  local i
+  local i=0
   local warnings_file
   local module_findbugs_warnings
   local results=0
@@ -262,7 +257,7 @@ function findbugs_postinstall
   local line
   local firstpart
   local secondpart
-  local i
+  local i=0
   local results=0
   local savestop
 
