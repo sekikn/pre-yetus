@@ -156,7 +156,6 @@ function findbugs_runner
 
     if [[ -z ${FINDBUGS_VERSION}
         && ${name} == branch ]]; then
-        set -x
       FINDBUGS_VERSION=$(${GREP} -i "BugCollection version=" "${warnings_file}.xml" \
         | cut -f2 -d\" \
         | cut -f1 -d\" )
@@ -164,7 +163,6 @@ function findbugs_runner
         add_footer_table findbugs "v${FINDBUGS_VERSION}"
       fi
     fi
-
 
     ((i=i+1))
   done
