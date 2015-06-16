@@ -186,7 +186,7 @@ function findbugs_preapply
 {
   local fn
   local module
-  local i
+  local i=0
   local warnings_file
   local module_findbugs_warnings
   local results=0
@@ -262,7 +262,7 @@ function findbugs_postinstall
   local line
   local firstpart
   local secondpart
-  local i
+  local i=0
   local results=0
   local savestop
 

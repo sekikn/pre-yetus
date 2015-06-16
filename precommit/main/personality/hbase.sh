@@ -141,7 +141,7 @@ function hbaseprotoc_filefilter
 
 function hbaseprotoc_postapply
 {
-  local i
+  local i=0
   local fn
   local module
   local logfile
