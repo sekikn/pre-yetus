@@ -1023,7 +1023,9 @@ function find_changed_modules
         #shellcheck disable=SC2086
         pomdir=$(find_pomxml_dir ${file})
         if [[ -z ${pomdir} ]]; then
-          exit 1
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
         fi
         pomdirs="${pomdirs} ${pomdir}"
       ;;
@@ -1031,7 +1033,9 @@ function find_changed_modules
         #shellcheck disable=SC2086
         pomdir=$(find_buildxml_dir ${file})
         if [[ -z ${pomdir} ]]; then
-          exit 1
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
         fi
         pomdirs="${pomdirs} ${pomdir}"
       ;;
