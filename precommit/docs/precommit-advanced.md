@@ -63,12 +63,21 @@ Similarly, there are other functions that may be defined during the test-patch r
 * pluginname_postapply
     - executed after the patch has been applied.  This is useful for any "after"-type data collection.
 
-
 * pluginname_postinstall
     - executed after the mvn install test has been done.  If any tests require the Maven repository to be up-to-date with the contents of the patch, this is the place.
 
 * pluginname_tests
     - executed after the unit tests have completed.
+
+If the plug-in has some specific options, one can use following functions:
+
+* pluginname_usage
+
+    - executed when the help message is displayed. This is used to display the plug-in specific options for the user.
+
+* pluginname_parse_args
+
+    - executed prior to any other above functions except for pluginname_usage. This is useful for parsing the arguments passed from the user and setting up the execution environment.
 
     HINT: It is recommend to make the pluginname relatively small, XX characters at the most.  Otherwise the ASCII output table may be skewed.
 
