@@ -22,6 +22,42 @@ CWD=$(pwd)
 USER_PARAMS=("$@")
 GLOBALTIMER=$(date +"%s")
 
+## @description  Print a message to stderr
+## @audience     public
+## @stability    stable
+## @replaceable  no
+## @param        string
+function yetus_error
+{
+  echo "$*" 1>&2
+}
+
+## @description  Print a message to stderr if --debug is turned on
+## @audience     public
+## @stability    stable
+## @replaceable  no
+## @param        string
+function yetus_debug
+{
+  if [[ -n "${TP_SHELL_SCRIPT_DEBUG}" ]]; then
+    echo "[$(date) DEBUG]: $*" 1>&2
+  fi
+}
+
+## @description  Make sure that bash version meets the pre-requisite
+## @audience     private
+## @stability    stable
+## @replaceable  no
+function check_bash_version
+{
+  if [[ ${BASH_VERSION} < "3.2" ]]; then
+    yetus_error "Bash 3.2+ is required."
+    exit 1
+  fi
+}
+
+check_bash_version
+
 ## @description  Setup the default global variables
 ## @audience     public
 ## @stability    stable
@@ -111,28 +147,6 @@ function setup_defaults
   TP_FOOTER_COUNTER=0
 
   RESULT=0
-}
-
-## @description  Print a message to stderr
-## @audience     public
-## @stability    stable
-## @replaceable  no
-## @param        string
-function yetus_error
-{
-  echo "$*" 1>&2
-}
-
-## @description  Print a message to stderr if --debug is turned on
-## @audience     public
-## @stability    stable
-## @replaceable  no
-## @param        string
-function yetus_debug
-{
-  if [[ -n "${TP_SHELL_SCRIPT_DEBUG}" ]]; then
-    echo "[$(date) DEBUG]: $*" 1>&2
-  fi
 }
 
 ## @description  Convert the given module name to a file fragment
@@ -926,18 +940,6 @@ function parse_args
   fi
 
   GITDIFFLINES=${PATCH_DIR}/gitdifflines.txt
-}
-
-## @description  Check execution environment such as software versions
-## @audience     private
-## @stability    evolving
-## @replaceable  no
-function check_environment
-{
-  if [[ $BASH_VERSION < "3.2" ]]; then
-    yetus_error "Bash 3.2+ is required."
-    exit 1
-  fi
 }
 
 ## @description  Locate the pom.xml file for a given directory
@@ -2943,8 +2945,6 @@ big_console_header "Bootstrapping test harness"
 setup_defaults
 
 parse_args "$@"
-
-check_environment
 
 importplugins
 
