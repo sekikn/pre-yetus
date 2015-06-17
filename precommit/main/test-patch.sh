@@ -2030,13 +2030,13 @@ function check_modified_unittests
 
   echo "There appear to be ${testReferences} test file(s) referenced in the patch."
   if [[ ${testReferences} == 0 ]] ; then
-    add_vote_table -1 "tests included" \
+    add_vote_table -1 "test4tests" \
       "The patch doesn't appear to include any new or modified tests. " \
       "Please justify why no new tests are needed for this patch." \
       "Also please list what manual steps were performed to verify this patch."
     return 1
   fi
-  add_vote_table +1 "tests included" \
+  add_vote_table +1 "test4tests" \
     "The patch appears to include ${testReferences} new or modified test files."
   return 0
 }
@@ -2438,10 +2438,8 @@ function check_unittests
 {
 
   local failed_tests=""
-  local failed_test_builds=""
   local test_timeouts=""
   local test_logfile
-  local test_build_result
   local module_test_timeouts=""
   local result
   local oldtimer
@@ -2495,10 +2493,6 @@ function check_unittests
       failed_tests="${failed_tests} ${module_failed_tests}"
       result=1
     fi
-    if [[ ${test_build_result} != 0 && -z "${module_failed_tests}" && -z "${module_test_timeouts}" ]] ; then
-      failed_test_builds="${failed_test_builds} ${module}"
-      result=1
-    fi
 
     ((i=i+1))
   done
@@ -2510,10 +2504,6 @@ function check_unittests
   if [[ -n "${test_timeouts}" ]] ; then
     # shellcheck disable=SC2086
     populate_test_table "Timed out tests" ${test_timeouts}
-  fi
-  if [[ -n "${failed_test_builds}" ]] ; then
-    # shellcheck disable=SC2086
-    populate_test_table "Failed build" ${failed_test_builds}
   fi
 
   if [[ ${JENKINS} == true ]]; then
