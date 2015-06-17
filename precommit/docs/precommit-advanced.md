@@ -114,7 +114,7 @@ The `add_test` function is used to activate the standard tests.  Additional plug
 
 ## Module & Profile Determination
 
-Once the tests are determined, it is now time to pick which modules should get used.  That's the job of the `personality_modules` function.
+Once the tests are determined, it is now time to pick which [modules](precommit-glossary.md#genericoutside-definitions) should get used.  That's the job of the `personality_modules` function.
 
 ```bash
 function personality_modules

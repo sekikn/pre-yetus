@@ -18,6 +18,10 @@
 
 Apache's [new contributor documentation](https://community.apache.org/contributors/) and Maven's [glossary](https://maven.apache.org/glossary.html) are great places to start if you are new to Apache or Maven.
 
+* Module
+
+  Almost the same meaning as "sub-project" on Maven.
+
 ## test-patch specific
 
 * Personality
