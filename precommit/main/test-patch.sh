@@ -79,24 +79,20 @@ function setup_defaults
   # Solaris needs POSIX, not SVID
   case ${OSTYPE} in
     SunOS)
-      PS=${PS:-ps}
       AWK=${AWK:-/usr/xpg4/bin/awk}
       SED=${SED:-/usr/xpg4/bin/sed}
       WGET=${WGET:-wget}
       GIT=${GIT:-git}
-      EGREP=${EGREP:-/usr/xpg4/bin/egrep}
       GREP=${GREP:-/usr/xpg4/bin/grep}
       PATCH=${PATCH:-patch}
       DIFF=${DIFF:-/usr/gnu/bin/diff}
       FILE=${FILE:-file}
     ;;
     *)
-      PS=${PS:-ps}
       AWK=${AWK:-awk}
       SED=${SED:-sed}
       WGET=${WGET:-wget}
       GIT=${GIT:-git}
-      EGREP=${EGREP:-egrep}
       GREP=${GREP:-grep}
       PATCH=${PATCH:-patch}
       DIFF=${DIFF:-diff}
@@ -664,6 +660,7 @@ function testpatch_usage
   echo "--test-threads=<int>   Number of tests to run in parallel (default defined in ${PROJECT_NAME} build)"
 
   echo "Shell binary overrides:"
+  echo "--ant-cmd=<cmd>        The 'ant' command to use (default \${ANT_HOME}/bin/ant, or 'ant')"
   echo "--awk-cmd=<cmd>        The 'awk' command to use (default 'awk')"
   echo "--diff-cmd=<cmd>       The GNU-compatible 'diff' command to use (default 'diff')"
   echo "--file-cmd=<cmd>       The 'file' command to use (default 'file')"
@@ -671,7 +668,6 @@ function testpatch_usage
   echo "--grep-cmd=<cmd>       The 'grep' command to use (default 'grep')"
   echo "--mvn-cmd=<cmd>        The 'mvn' command to use (default \${MAVEN_HOME}/bin/mvn, or 'mvn')"
   echo "--patch-cmd=<cmd>      The 'patch' command to use (default 'patch')"
-  echo "--ps-cmd=<cmd>         The 'ps' command to use (default 'ps')"
   echo "--sed-cmd=<cmd>        The 'sed' command to use (default 'sed')"
 
   echo
@@ -705,6 +701,9 @@ function parse_args
 
   for i in "$@"; do
     case ${i} in
+      --ant-cmd=*)
+        ANT=${i#*=}
+      ;;
       --awk-cmd=*)
         AWK=${i#*=}
       ;;
@@ -804,9 +803,6 @@ function parse_args
       ;;
       --project=*)
         PROJECT_NAME=${i#*=}
-      ;;
-      --ps-cmd=*)
-        PS=${i#*=}
       ;;
       --reexec)
         REEXECED=true
@@ -1482,7 +1478,7 @@ function guess_patch_file
     yetus_debug "file magic says it's a diff."
     return 0
   fi
-  fileOutput=$(head -n 1 "${patch}" | "${EGREP}" "^(From [a-z0-9]* Mon Sep 17 00:00:00 2001)|(diff .*)|(Index: .*)$")
+  fileOutput=$(head -n 1 "${patch}" | "${GREP}" -E "^(From [a-z0-9]* Mon Sep 17 00:00:00 2001)|(diff .*)|(Index: .*)$")
   if [[ $? == 0 ]]; then
     yetus_debug "first line looks like a patch file."
     return 0
@@ -1698,7 +1694,7 @@ function module_status
     MODULE_STATUS_LOG[${index}]="${log}"
     MODULE_STATUS_MSG[${index}]="${*}"
   else
-    hadoop_error "ASSERT: module_status given bad index"
+    yetus_error "ASSERT: module_status given bad index: ${index}"
     local frame=0
     while caller $frame; do
       ((frame++));
@@ -2079,9 +2075,9 @@ function count_javac_probs
     ;;
     ant)
       #shellcheck disable=SC2016
-      val1=$(${EGREP} "\[javac\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val1=$(${GREP} -E "\[javac\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       #shellcheck disable=SC2016
-      val2=$(${EGREP} "\[javac\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val2=$(${GREP} -E "\[javac\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       echo $((val1+val2))
     ;;
   esac
@@ -2194,13 +2190,13 @@ function count_javadoc_probs
   case ${BUILDTOOL} in
     maven)
       #shellcheck disable=SC2016,SC2046
-      ${EGREP} "^[0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$1} END {print sum}'
+      ${GREP} -E "^[0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$1} END {print sum}'
     ;;
     ant)
       #shellcheck disable=SC2016
-      val1=$(${EGREP} "\[javadoc\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val1=$(${GREP} -E "\[javadoc\] [0-9]+ errors?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       #shellcheck disable=SC2016
-      val2=$(${EGREP} "\[javadoc\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
+      val2=$(${GREP} -E "\[javadoc\] [0-9]+ warnings?$" "${warningfile}" | ${AWK} '{sum+=$2} END {print sum}')
       echo $((val1+val2))
     ;;
   esac
@@ -2553,7 +2549,7 @@ function output_to_console
 {
   local result=$1
   shift
-  local i
+  local i=0
   local ourstring
   local vote
   local subs
