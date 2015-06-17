@@ -184,6 +184,8 @@ function checkstyle_postapply
 {
   local result
   local module
+  local fn
+  local i=0
   local numprepatch=0
   local numpostpatch=0
   local diffpostpatch=0
