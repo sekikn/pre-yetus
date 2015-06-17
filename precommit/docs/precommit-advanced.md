@@ -114,7 +114,7 @@ The `add_test` function is used to activate the standard tests.  Additional plug
 
 ## Module & Profile Determination
 
-Once the tests are determined, it is now time to pick which modules<sup>[1](#module)</sup> should get used.  That's the job of the `personality_modules` function.
+Once the tests are determined, it is now time to pick which [modules](precommit-glossary.md#genericoutside-definitions) should get used.  That's the job of the `personality_modules` function.
 
 ```bash
 function personality_modules
@@ -162,5 +162,3 @@ function personality
 
 This function will tell test-patch that when the javadoc test is being run, do the documentation test at the base of the repository and make sure the -DskipTests flag is passed to Maven.
 
----
-<a name="module">1</a>: Module is a sub-project in Maven. For details, see [its document](https://maven.apache.org/guides/getting-started/index.html#How_do_I_build_more_than_one_project_at_once).
