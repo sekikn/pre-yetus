@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Make sure that bash version meets the pre-requisite
+if [[ ${BASH_VERSION} < "3.2" ]]; then
+  echo "Bash 3.2+ is required."
+  exit 1
+fi
+
 ### BUILD_URL is set by Hudson if it is run by patch process
 
 this="${BASH_SOURCE-$0}"
@@ -21,42 +27,6 @@ BINDIR=$(cd -P -- "$(dirname -- "${this}")" >/dev/null && pwd -P)
 CWD=$(pwd)
 USER_PARAMS=("$@")
 GLOBALTIMER=$(date +"%s")
-
-## @description  Print a message to stderr
-## @audience     public
-## @stability    stable
-## @replaceable  no
-## @param        string
-function yetus_error
-{
-  echo "$*" 1>&2
-}
-
-## @description  Print a message to stderr if --debug is turned on
-## @audience     public
-## @stability    stable
-## @replaceable  no
-## @param        string
-function yetus_debug
-{
-  if [[ -n "${TP_SHELL_SCRIPT_DEBUG}" ]]; then
-    echo "[$(date) DEBUG]: $*" 1>&2
-  fi
-}
-
-## @description  Make sure that bash version meets the pre-requisite
-## @audience     private
-## @stability    stable
-## @replaceable  no
-function check_bash_version
-{
-  if [[ ${BASH_VERSION} < "3.2" ]]; then
-    yetus_error "Bash 3.2+ is required."
-    exit 1
-  fi
-}
-
-check_bash_version
 
 ## @description  Setup the default global variables
 ## @audience     public
@@ -147,6 +117,28 @@ function setup_defaults
   TP_FOOTER_COUNTER=0
 
   RESULT=0
+}
+
+## @description  Print a message to stderr
+## @audience     public
+## @stability    stable
+## @replaceable  no
+## @param        string
+function yetus_error
+{
+  echo "$*" 1>&2
+}
+
+## @description  Print a message to stderr if --debug is turned on
+## @audience     public
+## @stability    stable
+## @replaceable  no
+## @param        string
+function yetus_debug
+{
+  if [[ -n "${TP_SHELL_SCRIPT_DEBUG}" ]]; then
+    echo "[$(date) DEBUG]: $*" 1>&2
+  fi
 }
 
 ## @description  Convert the given module name to a file fragment
