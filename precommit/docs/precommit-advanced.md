@@ -79,7 +79,7 @@ If the plug-in has some specific options, one can use following functions:
 
     - executed prior to any other above functions except for pluginname_usage. This is useful for parsing the arguments passed from the user and setting up the execution environment.
 
-    HINT: It is recommend to make the pluginname relatively small, XX characters at the most.  Otherwise the ASCII output table may be skewed.
+    HINT: It is recommend to make the pluginname relatively small, 10 characters at the most.  Otherwise the ASCII output table may be skewed.
 
 
 # Configuring for Other Projects
@@ -147,7 +147,7 @@ For example, let's say your project uses a special configuration to skip unit te
 
 
 ```bash
-function personality
+function personality_modules
 {
     local repostatus=$1
     local testtype=$2
