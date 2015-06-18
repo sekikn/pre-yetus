@@ -32,12 +32,13 @@ This is a modification to Hadoop's version of test-patch so that we may bring to
 
 test-patch has the following requirements:
 
-* Maven-based project (and maven installed)
+* Ant- or Maven-based project (and ant/maven installed)
 * git-based project (and git installed)
-* bash v3.x or higher
+* bash v3.2 or higher
 * findbugs 3.x installed
 * shellcheck installed
 * GNU diff
+* GNU patch
 * POSIX awk
 * POSIX grep
 * POSIX sed
@@ -92,7 +93,7 @@ We used two new options here.  --basedir sets the location of the repository to 
 
 After the tests have run, there is a directory that contains all of the test-patch related artifacts.  This is generally referred to as the patchprocess directory.  By default, test-patch tries to make something off of /tmp to contain this content.  Using the `--patchdir` command, one can specify exactly which directory to use.  This is helpful for automated precommit testing so that the Jenkins or other automated workflow system knows where to look to gather up the output.
 
-## Provinding Patch Files
+## Providing Patch Files
 
 It is a fairly common practice within the Apache community to use Apache's JIRA instance to store potential patches.  As a result, test-patch supports providing just a JIRA issue number.  test-patch will find the *last* attachment, download it, then process it.
 

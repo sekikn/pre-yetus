@@ -14,6 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# Make sure that bash version meets the pre-requisite
+if [[ ${BASH_VERSION} < "3.2" ]]; then
+  echo "Bash 3.2+ is required."
+  exit 1
+fi
+
 ### BUILD_URL is set by Hudson if it is run by patch process
 
 this="${BASH_SOURCE-$0}"
@@ -84,7 +90,7 @@ function setup_defaults
       WGET=${WGET:-wget}
       GIT=${GIT:-git}
       GREP=${GREP:-/usr/xpg4/bin/grep}
-      PATCH=${PATCH:-patch}
+      PATCH=${PATCH:-/usr/gnu/bin/patch}
       DIFF=${DIFF:-/usr/gnu/bin/diff}
       FILE=${FILE:-file}
     ;;
