@@ -293,7 +293,7 @@ function verify_multijdk_test
 {
   local i=$1
 
-  if [[ ${JDK_DIR_LIST} == ${JAVA_HOME} ]]; then
+  if [[ "${JDK_DIR_LIST}" == "${JAVA_HOME}" ]]; then
     yetus_debug "MultiJDK not configured."
     return 0
   fi
@@ -315,7 +315,6 @@ function fullyqualifyjdks
   local i
   local jdkdir
   local tmplist
-  local jhreq=false
 
   JAVA_HOME=$(cd -P -- "${JAVA_HOME}" >/dev/null && pwd -P)
 
@@ -1778,14 +1777,15 @@ function module_status
   local log=$3
   shift 3
 
-  local jdk=$(report_jvm_version "${JAVA_HOME}")
-  local statusjdk=" with JDK v${jdk}"
+  local jdk
+
+  jdk=$(report_jvm_version "${JAVA_HOME}")
 
   if [[ -n ${index}
     && ${index} =~ ^[0-9]+$ ]]; then
     MODULE_STATUS[${index}]="${value}"
     MODULE_STATUS_LOG[${index}]="${log}"
-    MODULE_STATUS_JDK[${index}]="${statusjdk}"
+    MODULE_STATUS_JDK[${index}]=" with JDK v${jdk}"
     MODULE_STATUS_MSG[${index}]="${*}"
   else
     yetus_error "ASSERT: module_status given bad index: ${index}"
@@ -1943,14 +1943,12 @@ function personality_enqueue_module
 ## @return       1 on failure
 function precheck_javac
 {
-  local result
+  local result=0
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
   local jdk=""
   local jdkindex=0
   local statusjdk
-  local jdkarray
-  declare -a jdkarray
 
   big_console_header "Pre-patch ${PATCH_BRANCH} javac compilation"
 
@@ -2004,14 +2002,12 @@ function precheck_javac
 ## @return       1 on failure
 function precheck_javadoc
 {
-  local result
+  local result=0
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
   local jdk=""
   local jdkindex=0
   local statusjdk
-  local jdkarray
-  declare -a jdkarray
 
   big_console_header "Pre-patch ${PATCH_BRANCH} Javadoc verification"
 
@@ -2249,8 +2245,6 @@ function check_patch_javac
   local jdk=""
   local jdkindex=0
   local statusjdk
-  local jdkarray
-  declare -a jdkarray
   typeset -i numbranch
   typeset -i numpatch
 
@@ -2389,8 +2383,6 @@ function check_patch_javadoc
   local jdk=""
   local jdkindex=0
   local statusjdk
-  local jdkarray
-  declare -a jdkarray
 
   big_console_header "Determining number of patched javadoc warnings"
 
@@ -2489,7 +2481,7 @@ function check_patch_javadoc
 ## @return       1 on failure
 function check_site
 {
-  local result
+  local result=0
 
   if [[ ${BUILDTOOL} != maven ]]; then
     return 0
@@ -2521,7 +2513,7 @@ function check_site
 ## @return       1 on failure
 function precheck_mvninstall
 {
-  local result
+  local result=0
 
   return 0
 
@@ -2559,7 +2551,7 @@ function precheck_mvninstall
 ## @return       1 on failure
 function check_mvninstall
 {
-  local result
+  local result=0
 
   if [[ ${BUILDTOOL} != maven ]]; then
     return 0
@@ -2659,8 +2651,6 @@ function check_unittests
   local jdk=""
   local jdkindex=0
   local statusjdk
-  local jdkarray
-  declare -a jdkarray
 
   big_console_header "Running unit tests"
 
