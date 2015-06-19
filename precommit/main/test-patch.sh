@@ -24,7 +24,7 @@ fi
 
 this="${BASH_SOURCE-$0}"
 BINDIR=$(cd -P -- "$(dirname -- "${this}")" >/dev/null && pwd -P)
-CWD=$(pwd)
+STARTINGDIR=$(pwd)
 USER_PARAMS=("$@")
 GLOBALTIMER=$(date +"%s")
 
@@ -81,6 +81,7 @@ function setup_defaults
   OSTYPE=$(uname -s)
   BUILDTOOL=maven
   BUGSYSTEM=jira
+  JDK_TEST_LIST="javac javadoc unit"
 
   # Solaris needs POSIX, not SVID
   case ${OSTYPE} in
@@ -269,6 +270,66 @@ function add_vote_table
   ((TP_VOTE_COUNTER=TP_VOTE_COUNTER+1))
 }
 
+## @description  Report the JVM version of the given directory
+## @stability     stable
+## @audience     private
+## @replaceable  yes
+## @params       directory
+## @returns      version
+function report_jvm_version
+{
+  #shellcheck disable=SC2016
+  "${1}/bin/java" -version 2>&1 | head -1 | ${AWK} '{print $NF}' | tr -d \"
+}
+
+## @description  Verify if a given test is multijdk
+## @audience     public
+## @stability    stable
+## @replaceable  yes
+## @param        test
+## @return       1 = yes
+## @return       0 = no
+function verify_multijdk_test
+{
+  local i=$1
+
+  if [[ ${JDK_DIR_LIST} == ${JAVA_HOME} ]]; then
+    yetus_debug "MultiJDK not configured."
+    return 0
+  fi
+
+  if [[ ${JDK_TEST_LIST} =~ $i ]]; then
+    yetus_debug "${i} is in ${JDK_TEST_LIST} and MultiJDK configured."
+    return 1
+  fi
+  return 0
+}
+
+## @description  Absolute path the JDK_DIR_LIST and JAVA_HOME.
+## @description  if JAVA_HOME is in JDK_DIR_LIST, it is positioned last
+## @stability    stable
+## @audience     private
+## @replaceable  yes
+function fullyqualifyjdks
+{
+  local i
+  local jdkdir
+  local tmplist
+  local jhreq=false
+
+  JAVA_HOME=$(cd -P -- "${JAVA_HOME}" >/dev/null && pwd -P)
+
+  for i in ${JDK_DIR_LIST}; do
+    jdkdir=$(cd -P -- "${i}" >/dev/null && pwd -P)
+    if [[ ${jdkdir} != ${JAVA_HOME} ]]; then
+      tmplist="${tmplist} ${jdkdir}"
+    fi
+  done
+
+  JDK_DIR_LIST="${tmplist} ${JAVA_HOME}"
+  JDK_DIR_LIST=${JDK_DIR_LIST/ }
+}
+
 ## @description  Put the opening environment information at the bottom
 ## @description  of the footer table
 ## @stability     stable
@@ -277,15 +338,26 @@ function add_vote_table
 function prepopulate_footer
 {
   # shellcheck disable=SC2016
-  local -r javaversion=$("${JAVA_HOME}/bin/java" -version 2>&1 | head -1 | ${AWK} '{print $NF}' | tr -d \")
+  local javaversion
+  local listofjdks
   local -r unamea=$(uname -a)
+  local i
 
-  add_footer_table "Java" "${javaversion}"
   add_footer_table "uname" "${unamea}"
   add_footer_table "Build tool" "${BUILDTOOL}"
 
   if [[ -n ${PERSONALITY} ]]; then
     add_footer_table "Personality" "${PERSONALITY}"
+  fi
+
+  javaversion=$(report_jvm_version "${JAVA_HOME}")
+  add_footer_table "Default Java" "${javaversion}"
+  if [[ -n ${JDK_DIR_LIST} ]]; then
+    for i in ${JDK_DIR_LIST}; do
+      javaversion=$(report_jvm_version "${i}")
+      listofjdks="${listofjdks} ${i}:${javaversion}"
+    done
+    add_footer_table "Multi-JDK versions" "${listofjdks}"
   fi
 }
 
@@ -590,7 +662,7 @@ function docker_launch
 
   start_clock
 
-  cd "${CWD}"
+  cd "${STARTINGDIR}"
   mkdir -p "${PATCH_DIR}/precommit-test"
   cp -pr "${BINDIR}"/* "${PATCH_DIR}/precommit-test"
   cat "${DOCKERFILE}" \
@@ -644,13 +716,15 @@ function testpatch_usage
   #echo "--bugsystem=<type>     The bug system in use ('jira', the default, or 'github')"
   echo "--build-native=<bool>  If true, then build native components (default 'true')"
   echo "--build-tool=<tool>    Pick which build tool to focus around (maven, ant)"
-  echo "--contrib-guide=<url>  URL to point new users towards project conventions. (default Hadoop's wiki)"
+  echo "--contrib-guide=<url>  URL to point new users towards project conventions. (default: ${HOW_TO_CONTRIBUTE})"
   echo "--debug                If set, then output some extra stuff to stderr"
   echo "--dirty-workspace      Allow the local git workspace to have uncommitted changes"
   echo "--docker               Spawn a docker container"
   echo "--dockerfile=<file>    Dockerfile fragment to use as the base"
-  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default '^(HADOOP|YARN|MAPREDUCE|HDFS)-[0-9]+$')"
-  echo "--java-home=<path>     Set JAVA_HOME (In Docker mode, this should be local to the image)"
+  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default \'${ISSUE_RE}\')"
+  echo "--java-home=<path>     Set default JAVA_HOME (In Docker mode, this should be local to the image)"
+  echo "--multijdkdirs=<paths> Comma delimited lists of JDK paths to use for multi-JDK tests"
+  echo "--multijdktests=<list> Comma delimited tests to use when multijdkdirs is used. (default: javac,javadoc,unit)"
   echo "--modulelist=<list>    Specify additional modules to test (comma delimited)"
   echo "--offline              Avoid connecting to the Internet"
   echo "--patch-dir=<dir>      The directory for working and output files (default '/tmp/test-patch-${PROJECT_NAME}/pid')"
@@ -665,6 +739,7 @@ function testpatch_usage
   echo "--test-parallel=<bool> Run multiple tests in parallel (default false in developer mode, true in Jenkins mode)"
   echo "--test-threads=<int>   Number of tests to run in parallel (default defined in ${PROJECT_NAME} build)"
 
+  echo
   echo "Shell binary overrides:"
   echo "--ant-cmd=<cmd>        The 'ant' command to use (default \${ANT_HOME}/bin/ant, or 'ant')"
   echo "--awk-cmd=<cmd>        The 'awk' command to use (default 'awk')"
@@ -786,6 +861,16 @@ function parse_args
         USER_MODULE_LIST=${USER_MODULE_LIST//,/ }
         yetus_debug "Manually forcing modules ${USER_MODULE_LIST}"
       ;;
+      --multijdkdirs=*)
+        JDK_DIR_LIST=${i#*=}
+        JDK_DIR_LIST=${JDK_DIR_LIST//,/ }
+        yetus_debug "Multi-JVM mode activated with ${JDK_DIR_LIST}"
+      ;;
+      --multijdktests=*)
+        JDK_TEST_LIST=${i#*=}
+        JDK_TEST_LIST=${JDK_TEST_LIST//,/ }
+        yetus_debug "Multi-JVM test list: ${JDK_TEST_LIST}"
+      ;;
       --mvn-cmd=*)
         MVN=${i#*=}
       ;;
@@ -893,7 +978,7 @@ function parse_args
   fi
 
   # we need absolute dir for ${BASEDIR}
-  cd "${CWD}"
+  cd "${STARTINGDIR}"
   BASEDIR=$(cd -P -- "${BASEDIR}" >/dev/null && pwd -P)
 
   if [[ -n ${USER_PATCH_DIR} ]]; then
@@ -902,7 +987,7 @@ function parse_args
     PATCH_DIR=/tmp/test-patch-${PROJECT_NAME}/$$
   fi
 
-  cd "${CWD}"
+  cd "${STARTINGDIR}"
   if [[ ! -d ${PATCH_DIR} ]]; then
     mkdir -p "${PATCH_DIR}"
     if [[ $? == 0 ]] ; then
@@ -1567,7 +1652,7 @@ function check_reexec
     rm "${commentfile}"
   fi
 
-  cd "${CWD}"
+  cd "${STARTINGDIR}"
   mkdir -p "${PATCH_DIR}/precommit-test"
   cp -pr "${BASEDIR}"/precommit/test-patch* "${PATCH_DIR}/precommit-test"
   cp -pr "${BASEDIR}"/precommit/smart-apply* "${PATCH_DIR}/precommit-test"
@@ -1608,11 +1693,13 @@ function modules_messages
   local testtype=$2
   local summarymode=$3
   shift 2
-  local i=0
+  local modindex=0
   local repo
   local goodtime=0
   local failure=false
   local oldtimer
+  local statusjdk
+  local multijdkmode=false
 
   if [[ ${repostatus} == branch ]]; then
     repo=${PATCH_BRANCH}
@@ -1620,46 +1707,58 @@ function modules_messages
     repo="the patch"
   fi
 
+  verify_multijdk_test "${testtype}"
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
+  fi
+
   oldtimer=${TIMER}
 
   if [[ ${summarymode} == true
     && ${ALLOWSUMMARIES} == true ]]; then
-    until [[ ${i} -eq ${#MODULE[@]} ]]; do
-      if [[ "${MODULE_STATUS[${i}]}" == '+1' ]]; then
-        ((goodtime=goodtime + ${MODULE_STATUS_TIMER[${i}]}))
+
+    until [[ ${modindex} -eq ${#MODULE[@]} ]]; do
+
+      if [[ ${multijdkmode} == true ]]; then
+        statusjdk=${MODULE_STATUS_JDK[${modindex}]}
+      fi
+
+      if [[ "${MODULE_STATUS[${modindex}]}" == '+1' ]]; then
+        ((goodtime=goodtime + ${MODULE_STATUS_TIMER[${modindex}]}))
       else
         failure=true
         start_clock
         echo ""
-        echo "${MODULE_STATUS_MSG[${i}]}"
+        echo "${MODULE_STATUS_MSG[${modindex}]}"
         echo ""
-        offset_clock "${MODULE_STATUS_TIMER[${i}]}"
-        add_vote_table "${MODULE_STATUS[${i}]}" "${testtype}" "${MODULE_STATUS_MSG[${i}]}"
-        if [[ ${MODULE_STATUS[${i}]} == -1
-          && -n "${MODULE_STATUS_LOG[${i}]}" ]]; then
-          add_footer_table "${testtype}" "@@BASE@@/${MODULE_STATUS_LOG[${i}]}"
+        offset_clock "${MODULE_STATUS_TIMER[${modindex}]}"
+        add_vote_table "${MODULE_STATUS[${modindex}]}" "${testtype}" "${MODULE_STATUS_MSG[${modindex}]}"
+        if [[ ${MODULE_STATUS[${modindex}]} == -1
+          && -n "${MODULE_STATUS_LOG[${modindex}]}" ]]; then
+          add_footer_table "${testtype}" "@@BASE@@/${MODULE_STATUS_LOG[${modindex}]}"
         fi
       fi
-      ((i=i+1))
+      ((modindex=modindex+1))
     done
+
     if [[ ${failure} == false ]]; then
       start_clock
       offset_clock "${goodtime}"
-      add_vote_table +1 "${testtype}" "${repo} passed"
+      add_vote_table +1 "${testtype}" "${repo} passed${statusjdk}"
     fi
   else
-    until [[ ${i} -eq ${#MODULE[@]} ]]; do
+    until [[ ${modindex} -eq ${#MODULE[@]} ]]; do
       start_clock
       echo ""
-      echo "${MODULE_STATUS_MSG[${i}]}"
+      echo "${MODULE_STATUS_MSG[${modindex}]}"
       echo ""
-      offset_clock "${MODULE_STATUS_TIMER[${i}]}"
-      add_vote_table "${MODULE_STATUS[${i}]}" "${testtype}" "${MODULE_STATUS_MSG[${i}]}"
-      if [[ ${MODULE_STATUS[${i}]} == -1
-        && -n "${MODULE_STATUS_LOG[${i}]}" ]]; then
-        add_footer_table "${testtype}" "@@BASE@@/${MODULE_STATUS_LOG[${i}]}"
+      offset_clock "${MODULE_STATUS_TIMER[${modindex}]}"
+      add_vote_table "${MODULE_STATUS[${modindex}]}" "${testtype}" "${MODULE_STATUS_MSG[${modindex}]}"
+      if [[ ${MODULE_STATUS[${modindex}]} == -1
+        && -n "${MODULE_STATUS_LOG[${modindex}]}" ]]; then
+        add_footer_table "${testtype}" "@@BASE@@/${MODULE_STATUS_LOG[${modindex}]}"
       fi
-      ((i=i+1))
+      ((modindex=modindex+1))
     done
   fi
   TIMER=${oldtimer}
@@ -1679,10 +1778,14 @@ function module_status
   local log=$3
   shift 3
 
+  local jdk=$(report_jvm_version "${JAVA_HOME}")
+  local statusjdk=" with JDK v${jdk}"
+
   if [[ -n ${index}
     && ${index} =~ ^[0-9]+$ ]]; then
     MODULE_STATUS[${index}]="${value}"
     MODULE_STATUS_LOG[${index}]="${log}"
+    MODULE_STATUS_JDK[${index}]="${statusjdk}"
     MODULE_STATUS_MSG[${index}]="${*}"
   else
     yetus_error "ASSERT: module_status given bad index: ${index}"
@@ -1707,12 +1810,15 @@ function modules_workers
   local repostatus=$1
   local testtype=$2
   shift 2
-  local i=0
+  local modindex=0
   local fn
   local savestart=${TIMER}
   local savestop
   local repo
   local modulesuffix
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
 
   if [[ ${repostatus} == branch ]]; then
     repo=${PATCH_BRANCH}
@@ -1722,30 +1828,30 @@ function modules_workers
 
   modules_reset
 
-  until [[ ${i} -eq ${#MODULE[@]} ]]; do
+  verify_multijdk_test "${testtype}"
+  if [[ $? == 1 ]]; then
+    jdk=$(report_jvm_version "${JAVA_HOME}")
+    statusjdk=" with JDK v${jdk}"
+    jdk="-jdk${jdk}"
+    jdk=${jdk// /}
+    yetus_debug "Starting MultiJDK mode${statusjdk} on ${testtype}"
+  fi
+
+  until [[ ${modindex} -eq ${#MODULE[@]} ]]; do
     start_clock
-    fn=$(module_file_fragment "${MODULE[${i}]}")
-    modulesuffix=$(basename "${MODULE[${i}]}")
-    pushd "${BASEDIR}/${MODULE[${i}]}" >/dev/null
+
+    fn=$(module_file_fragment "${MODULE[${modindex}]}")
+    fn="${fn}${jdk}"
+    modulesuffix=$(basename "${MODULE[${modindex}]}")
+    pushd "${BASEDIR}/${MODULE[${modindex}]}" >/dev/null
 
     if [[ ${modulesuffix} == . ]]; then
       modulesuffix="root"
     fi
 
     if [[ $? != 0 ]]; then
-      echo "${BASEDIR}/${MODULE[${i}]} no longer exists. Skipping."
-      case ${BUILDTOOL} in
-        maven)
-          echo "${MVN}" "${MAVEN_ARGS[@]}" "${@}" "${MODULEEXTRAPARAM[${i}]}" -Ptest-patch
-        ;;
-        ant)
-          echo "${ANT}" "${ANT_ARGS[@]}" "${MODULEEXTRAPARAM[${i}]}" "${@}"
-        ;;
-        *)
-          return 1
-        ;;
-      esac
-      ((i=i+1))
+      echo "${BASEDIR}/${MODULE[${modindex}]} no longer exists. Skipping."
+      ((modindex=modindex+1))
       continue
     fi
 
@@ -1755,37 +1861,42 @@ function modules_workers
         echo_and_redirect "${PATCH_DIR}/${repostatus}-${testtype}-${fn}.txt" \
           ${MVN} "${MAVEN_ARGS[@]}" \
             "${@//@@@MODULEFN@@@/${fn}}" \
-             "${MODULEEXTRAPARAM[${i}]//@@@MODULEFN@@@/${fn}}" -Ptest-patch
+             "${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}}" -Ptest-patch
       ;;
       ant)
         #shellcheck disable=SC2086
         echo_and_redirect "${PATCH_DIR}/${repostatus}-${testtype}-${fn}.txt" \
           "${ANT}" "${ANT_ARGS[@]}" \
-          "${MODULEEXTRAPARAM[${i}]//@@@MODULEFN@@@/${fn}}" \
+          "${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}}" \
           "${@//@@@MODULEFN@@@/${fn}}"
 
       ;;
       *)
+        yetus_error "ERROR: Unsupported build tool."
         return 1
       ;;
     esac
 
     if [[ $? == 0 ]] ; then
-      module_status ${i} +1 "${repostatus}-${testtype}-${fn}.txt" "${modulesuffix} in ${repo} passed."
+      module_status \
+        ${modindex} \
+        +1 \
+        "${repostatus}-${testtype}-${fn}.txt" \
+        "${modulesuffix} in ${repo} passed${statusjdk}."
     else
       module_status \
-        ${i} \
+        ${modindex} \
         -1 \
         "${repostatus}-${testtype}-${fn}.txt" \
-        "${modulesuffix} in ${repo} failed."
+        "${modulesuffix} in ${repo} failed${statusjdk}."
       ((result = result + 1))
     fi
     savestop=$(stop_clock)
-    MODULE_STATUS_TIMER[${i}]=${savestop}
+    MODULE_STATUS_TIMER[${modindex}]=${savestop}
     # shellcheck disable=SC2086
     echo "Elapsed: $(clock_display ${savestop})"
     popd >/dev/null
-    ((i=i+1))
+    ((modindex=modindex+1))
   done
 
   TIMER=${savestart}
@@ -1832,9 +1943,16 @@ function personality_enqueue_module
 ## @return       1 on failure
 function precheck_javac
 {
-  local result=0
+  local result
+  local -r savejavahome=${JAVA_HOME}
+  local multijdkmode=false
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
+  local jdkarray
+  declare -a jdkarray
 
-  big_console_header "Pre-patch ${PATCH_BRANCH} Java compilation"
+  big_console_header "Pre-patch ${PATCH_BRANCH} javac compilation"
 
   verify_needed_test javac
   if [[ $? == 0 ]]; then
@@ -1842,21 +1960,37 @@ function precheck_javac
      return 0
   fi
 
-  personality_modules branch javac
-  case ${BUILDTOOL} in
-    maven)
-      modules_workers branch javac clean compile
-    ;;
-    ant)
-      modules_workers branch javac
-    ;;
-    *)
-      return 1
-    ;;
-  esac
-  result=$?
-  modules_messages branch javac true
-  if [[ ${result} != 0 ]]; then
+  verify_multijdk_test javac
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
+  fi
+
+  for jdkindex in ${JDK_DIR_LIST}; do
+    if [[ ${multijdkmode} == true ]]; then
+      JAVA_HOME=${jdkindex}
+    fi
+
+    personality_modules branch javac
+    case ${BUILDTOOL} in
+      maven)
+        modules_workers branch javac clean compile
+      ;;
+      ant)
+        modules_workers branch javac javac
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        return 1
+      ;;
+    esac
+
+    ((result=result + $?))
+    modules_messages branch javac true
+
+  done
+  JAVA_HOME=${savejavahome}
+
+  if [[ ${result} -gt 0 ]]; then
     return 1
   fi
   return 0
@@ -1871,6 +2005,13 @@ function precheck_javac
 function precheck_javadoc
 {
   local result
+  local -r savejavahome=${JAVA_HOME}
+  local multijdkmode=false
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
+  local jdkarray
+  declare -a jdkarray
 
   big_console_header "Pre-patch ${PATCH_BRANCH} Javadoc verification"
 
@@ -1880,22 +2021,37 @@ function precheck_javadoc
      return 0
   fi
 
-  personality_modules branch javadoc
-  case ${BUILDTOOL} in
-    maven)
-      modules_workers branch javadoc clean javadoc:javadoc
-    ;;
-    ant)
-      modules_workers branch javadoc clean javadoc
-    ;;
-    *)
-      return 1
-    ;;
-  esac
+  verify_multijdk_test javac
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
+  fi
 
-  result=$?
-  modules_messages branch javadoc true
-  if [[ ${result} != 0 ]]; then
+  for jdkindex in ${JDK_DIR_LIST}; do
+    if [[ ${multijdkmode} == true ]]; then
+      JAVA_HOME=${jdkindex}
+    fi
+
+    personality_modules branch javadoc
+    case ${BUILDTOOL} in
+      maven)
+        modules_workers branch javadoc clean javadoc:javadoc
+      ;;
+      ant)
+        modules_workers branch javadoc clean javadoc
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        return 1
+      ;;
+    esac
+
+    ((result=result + $?))
+    modules_messages branch javadoc true
+
+  done
+  JAVA_HOME=${savejavahome}
+
+  if [[ ${result} -gt 0 ]]; then
     return 1
   fi
   return 0
@@ -2088,9 +2244,15 @@ function check_patch_javac
   local result=0
   local fn
   local oldtimer
+  local -r savejavahome=${JAVA_HOME}
+  local multijdkmode=false
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
+  local jdkarray
+  declare -a jdkarray
   typeset -i numbranch
   typeset -i numpatch
-
 
   big_console_header "Determining number of patched javac errors"
 
@@ -2101,65 +2263,81 @@ function check_patch_javac
     return 0
   fi
 
-  personality_modules patch javac
-  case ${BUILDTOOL} in
-    maven)
-      modules_workers patch javac clean compile
-    ;;
-    ant)
-      modules_workers patch javac
-    ;;
-    *)
-      return 1
-    ;;
-  esac
+  verify_multijdk_test javac
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
+  fi
 
-  until [[ ${i} -eq ${#MODULE[@]} ]]; do
-    if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
-      ((result=result+1))
+  for jdkindex in ${JDK_DIR_LIST}; do
+    if [[ ${multijdkmode} == true ]]; then
+      JAVA_HOME=${jdkindex}
+    fi
+
+    personality_modules patch javac
+
+    case ${BUILDTOOL} in
+      maven)
+        modules_workers patch javac clean compile
+      ;;
+      ant)
+        modules_workers patch javac
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        return 1
+      ;;
+    esac
+
+    until [[ ${i} -eq ${#MODULE[@]} ]]; do
+      if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
+        ((result=result+1))
+        ((i=i+1))
+        continue
+      fi
+
+      fn=$(module_file_fragment "${MODULE[${i}]}")
+      fn="${fn}${jdk}"
+      module_suffix=$(basename "${MODULE[${i}]}")
+      if [[ ${module_suffix} == \. ]]; then
+        module_suffix=root
+      fi
+
+      # if it was a new module, this won't exist.
+      if [[ -f "${PATCH_DIR}/branch-javac-${fn}.txt" ]]; then
+        ${GREP} '\[WARNING\]' "${PATCH_DIR}/branch-javac-${fn}.txt" \
+          > "${PATCH_DIR}/branch-javac-${fn}-warning.txt"
+      else
+        touch "${PATCH_DIR}/branch-javac-${fn}.txt" \
+          "${PATCH_DIR}/branch-javac-${fn}-warning.txt"
+      fi
+
+      ${GREP} '\[WARNING\]' "${PATCH_DIR}/patch-javac-${fn}.txt" \
+        > "${PATCH_DIR}/patch-javac-${fn}-warning.txt"
+
+      numbranch=$(count_javac_probs "${PATCH_DIR}/branch-javac-${fn}-warning.txt")
+      numpatch=$(count_javac_probs "${PATCH_DIR}/patch-javac-${fn}-warning.txt")
+
+      if [[ -n ${numbranch}
+          && -n ${numpatch}
+          && ${numpatch} -gt ${numbranch} ]]; then
+
+        ${DIFF} -u "${PATCH_DIR}/branch-javac-${fn}-warning.txt" \
+          "${PATCH_DIR}/patch-javac-${fn}-warning.txt" \
+          > "${PATCH_DIR}/javac-${fn}-diff.txt"
+
+        module_status ${i} -1 "javac-${fn}-diff.txt" \
+          "Patched ${module_suffix} generated "\
+          "$((numpatch-numbranch)) additional warning messages${statusjdk}." \
+
+        ((result=result+1))
+      fi
       ((i=i+1))
-      continue
-    fi
+    done
 
-    fn=$(module_file_fragment "${MODULE[${i}]}")
-    module_suffix=$(basename "${MODULE[${i}]}")
-    if [[ ${module_suffix} == \. ]]; then
-      module_suffix=root
-    fi
-
-    # if it was a new module, this won't exist.
-    if [[ -f "${PATCH_DIR}/branch-javac-${fn}.txt" ]]; then
-      ${GREP} '\[WARNING\]' "${PATCH_DIR}/branch-javac-${fn}.txt" \
-        > "${PATCH_DIR}/branch-javac-${fn}-warning.txt"
-    else
-      touch "${PATCH_DIR}/branch-javac-${fn}.txt" \
-        "${PATCH_DIR}/branch-javac-${fn}-warning.txt"
-    fi
-
-    ${GREP} '\[WARNING\]' "${PATCH_DIR}/patch-javac-${fn}.txt" \
-      > "${PATCH_DIR}/patch-javac-${fn}-warning.txt"
-
-    numbranch=$(count_javac_probs "${PATCH_DIR}/branch-javac-${fn}-warning.txt")
-    numpatch=$(count_javac_probs "${PATCH_DIR}/patch-javac-${fn}-warning.txt")
-
-    if [[ -n ${numbranch}
-        && -n ${numpatch}
-        && ${numpatch} -gt ${numbranch} ]]; then
-
-      ${DIFF} -u "${PATCH_DIR}/branch-javac-${fn}-warning.txt" \
-        "${PATCH_DIR}/patch-javac-${fn}-warning.txt" \
-        > "${PATCH_DIR}/javac-${fn}-diff.txt"
-
-      module_status ${i} -1 "javac-${fn}-diff.txt" \
-        "Patched ${module_suffix} generated "\
-        "$((numpatch-numbranch)) additional warning messages." \
-
-      ((result=result+1))
-    fi
-    ((i=i+1))
+    modules_messages patch javac true
   done
+  JAVA_HOME=${savejavahome}
 
-  modules_messages patch javac true
   if [[ ${result} -gt 0 ]]; then
     return 1
   fi
@@ -2206,6 +2384,13 @@ function check_patch_javadoc
   local i=0
   local result=0
   local fn
+  local -r savejavahome=${JAVA_HOME}
+  local multijdkmode=false
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
+  local jdkarray
+  declare -a jdkarray
 
   big_console_header "Determining number of patched javadoc warnings"
 
@@ -2215,62 +2400,81 @@ function check_patch_javadoc
     return 0
   fi
 
-  personality_modules patch javadoc
-  case ${BUILDTOOL} in
-    maven)
-      modules_workers patch javadoc clean javadoc:javadoc
-    ;;
-    ant)
-      modules_workers patch javadoc clean javadoc
-    ;;
-    *)
-      return 1
-    ;;
-  esac
+  verify_multijdk_test javac
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
+  fi
 
-  until [[ ${i} -eq ${#MODULE[@]} ]]; do
-    if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
-      ((result=result+1))
-      ((i=i+1))
-      continue
+  for jdkindex in ${JDK_DIR_LIST}; do
+    if [[ ${multijdkmode} == true ]]; then
+      JAVA_HOME=${jdkindex}
+      jdk=$(report_jvm_version "${JAVA_HOME}")
+      yetus_debug "Using ${JAVA_HOME} to run this set of tests"
+      statusjdk=" with JDK v${jdk}"
+      jdk="-jdk${jdk}"
+      jdk=${jdk// /}
     fi
 
-    fn=$(module_file_fragment "${MODULE[${i}]}")
-    numbranch=$(count_javadoc_probs "${PATCH_DIR}/branch-javadoc-${fn}.txt")
-    numpatch=$(count_javadoc_probs "${PATCH_DIR}/patch-javadoc-${fn}.txt")
+    personality_modules patch javadoc
+    case ${BUILDTOOL} in
+      maven)
+        modules_workers patch javadoc clean javadoc:javadoc
+      ;;
+      ant)
+        modules_workers patch javadoc clean javadoc
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        return 1
+      ;;
+    esac
 
-
-    if [[ -n ${numbranch}
-        && -n ${numpatch}
-        && ${numpatch} -gt ${numbranch} ]] ; then
-
-      if [[ -f "${PATCH_DIR}/branch-javadoc-${fn}.txt" ]]; then
-        ${GREP} -i warning "${PATCH_DIR}/branch-javadoc-${fn}.txt" \
-          > "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt"
-      else
-        touch "${PATCH_DIR}/branch-javadoc-${fn}.txt" \
-          "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt"
+    until [[ ${i} -eq ${#MODULE[@]} ]]; do
+      if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
+        ((result=result+1))
+        ((i=i+1))
+        continue
       fi
 
-      ${GREP} -i warning "${PATCH_DIR}/patch-javadoc-${fn}.txt" \
-        > "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt"
+      fn=$(module_file_fragment "${MODULE[${i}]}")
+      fn="${fn}${jdk}"
+      numbranch=$(count_javadoc_probs "${PATCH_DIR}/branch-javadoc-${fn}.txt")
+      numpatch=$(count_javadoc_probs "${PATCH_DIR}/patch-javadoc-${fn}.txt")
 
-      ${DIFF} -u "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt" \
-        "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt" \
-        > "${PATCH_DIR}/javadoc-${fn}-diff.txt"
-      rm -f "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt" \
-         "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt"
+      if [[ -n ${numbranch}
+          && -n ${numpatch}
+          && ${numpatch} -gt ${numbranch} ]] ; then
 
-      module_status ${i} -1  "javadoc-${fn}-diff.txt" \
-        "Patched ${MODULE[${i}]} generated "\
-        "$((numpatch-numbranch)) additional warning messages."
+        if [[ -f "${PATCH_DIR}/branch-javadoc-${fn}.txt" ]]; then
+          ${GREP} -i warning "${PATCH_DIR}/branch-javadoc-${fn}.txt" \
+            > "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt"
+        else
+          touch "${PATCH_DIR}/branch-javadoc-${fn}.txt" \
+            "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt"
+        fi
 
-      ((result=result+1))
-    fi
-    ((i=i+1))
+        ${GREP} -i warning "${PATCH_DIR}/patch-javadoc-${fn}.txt" \
+          > "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt"
+
+        ${DIFF} -u "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt" \
+          "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt" \
+          > "${PATCH_DIR}/javadoc-${fn}-diff.txt"
+        rm -f "${PATCH_DIR}/branch-javadoc-${fn}-filtered.txt" \
+           "${PATCH_DIR}/patch-javadoc-${fn}-filtered.txt"
+
+        module_status ${i} -1  "javadoc-${fn}-diff.txt" \
+          "Patched ${MODULE[${i}]} generated "\
+          "$((numpatch-numbranch)) additional warning messages${statusjdk}."
+
+        ((result=result+1))
+      fi
+      ((i=i+1))
+    done
+
+    modules_messages patch javadoc true
   done
+  JAVA_HOME=${savejavahome}
 
-  modules_messages patch javadoc true
   if [[ ${result} -gt 0 ]]; then
     return 1
   fi
@@ -2318,6 +2522,8 @@ function check_site
 function precheck_mvninstall
 {
   local result
+
+  return 0
 
   if [[ ${BUILDTOOL} != maven ]]; then
     return 0
@@ -2442,13 +2648,19 @@ function populate_test_table
 ## @return       1 on failure
 function check_unittests
 {
-
   local failed_tests=""
   local test_timeouts=""
   local test_logfile
   local module_test_timeouts=""
-  local result
+  local result=0
   local oldtimer
+  local -r savejavahome=${JAVA_HOME}
+  local multijdkmode=false
+  local jdk=""
+  local jdkindex=0
+  local statusjdk
+  local jdkarray
+  declare -a jdkarray
 
   big_console_header "Running unit tests"
 
@@ -2459,64 +2671,91 @@ function check_unittests
     return 0
   fi
 
-  personality_modules patch unit
-  case ${BUILDTOOL} in
-    maven)
-      modules_workers patch unit clean install -fae
-    ;;
-    ant)
-      modules_workers patch unit
-    ;;
-  esac
-  result=$?
-
-  modules_messages patch unit false
-  if [[ ${result} == 0 ]]; then
-    return 0
+  verify_multijdk_test javac
+  if [[ $? == 1 ]]; then
+    multijdkmode=true
   fi
 
-  until [[ $i -eq ${#MODULE[@]} ]]; do
-    module=${MODULE[${i}]}
-    fn=$(module_file_fragment "${module}")
-    test_logfile="${PATCH_DIR}/patch-unit-${fn}.txt"
-
-    # shellcheck disable=2016
-    module_test_timeouts=$(${AWK} '/^Running / { array[$NF] = 1 } /^Tests run: .* in / { delete array[$NF] } END { for (x in array) { print x } }' "${test_logfile}")
-    if [[ -n "${module_test_timeouts}" ]] ; then
-      test_timeouts="${test_timeouts} ${module_test_timeouts}"
-      result=1
+  for jdkindex in ${JDK_DIR_LIST}; do
+    if [[ ${multijdkmode} == true ]]; then
+      JAVA_HOME=${jdkindex}
+      jdk=$(report_jvm_version "${JAVA_HOME}")
+      statusjdk="JDK v${jdk} "
+      jdk="-jdk${jdk}"
+      jdk=${jdk// /}
     fi
 
-    pushd "${MODULE[${i}]}" >/dev/null
-    #shellcheck disable=SC2026,SC2038,SC2016
-    module_failed_tests=$(find . -name 'TEST*.xml'\
-      | xargs "${GREP}" -l -E "<failure|<error"\
-      | ${AWK} -F/ '{sub("TEST-org.apache.",""); sub(".xml",""); print $NF}')
+    personality_modules patch unit
+    case ${BUILDTOOL} in
+      maven)
+        modules_workers patch unit clean install -fae
+      ;;
+      ant)
+        modules_workers patch unit
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        return 1
+      ;;
+    esac
+    ((result=result+$?))
 
-    popd >/dev/null
-
-    if [[ -n "${module_failed_tests}" ]] ; then
-      failed_tests="${failed_tests} ${module_failed_tests}"
-      result=1
+    modules_messages patch unit false
+    if [[ ${result} == 0 ]]; then
+      continue
     fi
 
-    ((i=i+1))
+    until [[ $i -eq ${#MODULE[@]} ]]; do
+      module=${MODULE[${i}]}
+      fn=$(module_file_fragment "${module}")
+      fn="${fn}${jdk}"
+      test_logfile="${PATCH_DIR}/patch-unit-${fn}.txt"
+
+      # shellcheck disable=2016
+      module_test_timeouts=$(${AWK} '/^Running / { array[$NF] = 1 } /^Tests run: .* in / { delete array[$NF] } END { for (x in array) { print x } }' "${test_logfile}")
+      if [[ -n "${module_test_timeouts}" ]] ; then
+        test_timeouts="${test_timeouts} ${module_test_timeouts}"
+        ((result=result+1))
+      fi
+
+      pushd "${MODULE[${i}]}" >/dev/null
+      #shellcheck disable=SC2026,SC2038,SC2016
+      module_failed_tests=$(find . -name 'TEST*.xml'\
+        | xargs "${GREP}" -l -E "<failure|<error"\
+        | ${AWK} -F/ '{sub("TEST-org.apache.",""); sub(".xml",""); print $NF}')
+
+      popd >/dev/null
+
+      if [[ -n "${module_failed_tests}" ]] ; then
+        failed_tests="${failed_tests} ${module_failed_tests}"
+        ((result=result+1))
+      fi
+
+      ((i=i+1))
+    done
+
+    if [[ -n "${failed_tests}" ]] ; then
+      # shellcheck disable=SC2086
+      populate_test_table "${statusjdk}Failed unit tests" ${failed_tests}
+      failed_tests=""
+    fi
+    if [[ -n "${test_timeouts}" ]] ; then
+      # shellcheck disable=SC2086
+      populate_test_table "${statusjdk}Timed out tests" ${test_timeouts}
+      test_timeouts=""
+    fi
+
   done
-
-  if [[ -n "${failed_tests}" ]] ; then
-    # shellcheck disable=SC2086
-    populate_test_table "Failed unit tests" ${failed_tests}
-  fi
-  if [[ -n "${test_timeouts}" ]] ; then
-    # shellcheck disable=SC2086
-    populate_test_table "Timed out tests" ${test_timeouts}
-  fi
+  JAVA_HOME=${savejavahome}
 
   if [[ ${JENKINS} == true ]]; then
-    add_footer_table "Test Results" "${BUILD_URL}testReport/"
+    add_footer_table "${statusjdk} Test Results" "${BUILD_URL}testReport/"
   fi
 
-  return 1
+  if [[ ${result} -gt 0 ]]; then
+    return 1
+  fi
+  return 0
 }
 
 ## @description  Print out the finished details on the console
@@ -2931,6 +3170,8 @@ parse_args "$@"
 importplugins
 
 parse_args_plugins "$@"
+
+fullyqualifyjdks
 
 prepopulate_footer
 
