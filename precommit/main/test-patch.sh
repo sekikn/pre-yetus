@@ -1603,8 +1603,6 @@ function check_reexec
 
   big_console_header "exec'ing test-patch.sh now..."
 
-
-
   # now re-exec.  We put these options at the end to act as
   # overrides.  Very Java-esqe.
   exec "${PATCH_DIR}/precommit-test/test-patch.sh" \
@@ -1698,7 +1696,6 @@ function modules_messages
     done
   fi
   TIMER=${oldtimer}
-
 }
 
 ## @description  Add a test result
@@ -1798,7 +1795,6 @@ function modules_workers
           "${ANT}" "${ANT_ARGS[@]}" \
           "${MODULEEXTRAPARAM[${i}]//@@@MODULEFN@@@/${fn}}" \
           "${@//@@@MODULEFN@@@/${fn}}"
-
       ;;
       *)
         return 1
@@ -2130,7 +2126,6 @@ function check_patch_javac
   local oldtimer
   typeset -i numbranch
   typeset -i numpatch
-
 
   big_console_header "Determining number of patched javac errors"
 
@@ -2856,7 +2851,6 @@ function postinstall
       (( RESULT = RESULT + $? ))
     fi
   done
-
 }
 
 ## @description  Driver to execute _tests routines
