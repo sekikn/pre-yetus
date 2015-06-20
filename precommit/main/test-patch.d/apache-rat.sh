@@ -47,16 +47,18 @@ function asflicense_postapply
     ;;
   esac
 
-  if [[ $? != 0 ]]; then
-    modules_messages patch asflicense true
-    return 1
+  # RAT fails the build if there are license problems.
+  # so let's take advantage of that a bit.
+  if [[ $? == 0 ]]; then
+    add_vote_table 1 asflicense "Patch does not generate ASF License warnings."
+    return 0
   fi
 
   #shellcheck disable=SC2038
   find "${BASEDIR}" -name rat.txt -o -name releaseaudit_report.txt \
     | xargs cat > "${PATCH_DIR}/patch-asflicense.txt"
 
-  if [[ -f "${PATCH_DIR}/patch-asflicense.txt" ]] ; then
+  if [[ -s "${PATCH_DIR}/patch-asflicense.txt" ]] ; then
     numpatch=$("${GREP}" -c '\!?????' "${PATCH_DIR}/patch-asflicense.txt")
     echo ""
     echo ""
@@ -73,10 +75,10 @@ function asflicense_postapply
       >>  "${PATCH_DIR}/patch-asflicense-problems.txt"
 
       add_footer_table asflicense "@@BASE@@/patch-asflicense-problems.txt"
-
-      return 1
     fi
+  else
+    # if we're here, then maven actually failed
+    modules_messages patch asflicense true
   fi
-  add_vote_table 1 asflicense "Patch does not generate ASF License warnings."
-  return 0
+  return 1
 }
