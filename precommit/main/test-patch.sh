@@ -2328,7 +2328,7 @@ function check_site
 
   big_console_header "Determining number of patched site errors"
 
-  verify_needed_test patch site
+  verify_needed_test site
   if [[ $? == 0 ]]; then
     echo "Patch does not appear to need site tests."
     return 0
