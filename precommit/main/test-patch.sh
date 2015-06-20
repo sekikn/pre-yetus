@@ -1946,9 +1946,7 @@ function precheck_javac
   local result=0
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
-  local jdk=""
   local jdkindex=0
-  local statusjdk
 
   big_console_header "Pre-patch ${PATCH_BRANCH} javac compilation"
 
@@ -2005,9 +2003,7 @@ function precheck_javadoc
   local result=0
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
-  local jdk=""
   local jdkindex=0
-  local statusjdk
 
   big_console_header "Pre-patch ${PATCH_BRANCH} Javadoc verification"
 
@@ -2017,7 +2013,7 @@ function precheck_javadoc
      return 0
   fi
 
-  verify_multijdk_test javac
+  verify_multijdk_test javadoc
   if [[ $? == 1 ]]; then
     multijdkmode=true
   fi
@@ -2234,19 +2230,16 @@ function count_javac_probs
 ## @return       1 on failure
 function check_patch_javac
 {
-  local numbranch
-  local numpatch
   local i=0
   local result=0
   local fn
-  local oldtimer
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
   local jdk=""
   local jdkindex=0
   local statusjdk
-  typeset -i numbranch
-  typeset -i numpatch
+  declare -i numbranch
+  declare -i numpatch
 
   big_console_header "Determining number of patched javac errors"
 
@@ -2265,6 +2258,11 @@ function check_patch_javac
   for jdkindex in ${JDK_DIR_LIST}; do
     if [[ ${multijdkmode} == true ]]; then
       JAVA_HOME=${jdkindex}
+      jdk=$(report_jvm_version "${JAVA_HOME}")
+      yetus_debug "Using ${JAVA_HOME} to run this set of tests"
+      statusjdk=" with JDK v${jdk}"
+      jdk="-jdk${jdk}"
+      jdk=${jdk// /}
     fi
 
     personality_modules patch javac
@@ -2373,8 +2371,6 @@ function count_javadoc_probs
 ## @return       1 on failure
 function check_patch_javadoc
 {
-  local numbranch
-  local numpatch
   local i=0
   local result=0
   local fn
@@ -2383,6 +2379,8 @@ function check_patch_javadoc
   local jdk=""
   local jdkindex=0
   local statusjdk
+  declare -i numbranch
+  declare -i numpatch
 
   big_console_header "Determining number of patched javadoc warnings"
 
@@ -2515,8 +2513,6 @@ function precheck_mvninstall
 {
   local result=0
 
-  return 0
-
   if [[ ${BUILDTOOL} != maven ]]; then
     return 0
   fi
@@ -2645,7 +2641,6 @@ function check_unittests
   local test_logfile
   local module_test_timeouts=""
   local result=0
-  local oldtimer
   local -r savejavahome=${JAVA_HOME}
   local multijdkmode=false
   local jdk=""
@@ -2661,7 +2656,7 @@ function check_unittests
     return 0
   fi
 
-  verify_multijdk_test javac
+  verify_multijdk_test unit
   if [[ $? == 1 ]]; then
     multijdkmode=true
   fi
