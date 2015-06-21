@@ -85,8 +85,6 @@ function hadoop_javac_ordering
   local ordered_modules
   local module
 
-  hadoop_module_manipulation
-
   # Based upon HADOOP-11937
   #
   # Some notes:
@@ -156,6 +154,7 @@ function personality_modules
   case ${testtype} in
     javac)
       if [[ ${BUILD_NATIVE} == true ]]; then
+        hadoop_module_manipulation
         hadoop_javac_ordering -DskipTests
         return
       fi
@@ -179,7 +178,8 @@ function personality_modules
     mvninstall)
       extra="-DskipTests"
       if [[ ${repostatus} == branch ]]; then
-        personality_enqueue_module . "${extra}"
+        HADOOP_MODULES=.
+        hadoop_javac_ordering -DskipTests
         return
       fi
       ;;
@@ -197,6 +197,7 @@ function personality_modules
         fi
       fi
       if [[ ${BUILD_NATIVE} == true ]]; then
+        hadoop_module_manipulation
         # shellcheck disable=SC2086
         hadoop_javac_ordering ${extra}
         return
