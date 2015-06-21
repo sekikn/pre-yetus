@@ -1859,13 +1859,13 @@ function modules_workers
         echo_and_redirect "${PATCH_DIR}/${repostatus}-${testtype}-${fn}.txt" \
           ${MVN} "${MAVEN_ARGS[@]}" \
             "${@//@@@MODULEFN@@@/${fn}}" \
-             "${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}}" -Ptest-patch
+             ${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}} -Ptest-patch
       ;;
       ant)
         #shellcheck disable=SC2086
         echo_and_redirect "${PATCH_DIR}/${repostatus}-${testtype}-${fn}.txt" \
           "${ANT}" "${ANT_ARGS[@]}" \
-          "${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}}" \
+          ${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}} \
           "${@//@@@MODULEFN@@@/${fn}}"
 
       ;;
