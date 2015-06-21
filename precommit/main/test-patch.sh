@@ -2388,7 +2388,7 @@ function check_patch_javadoc
     return 0
   fi
 
-  verify_multijdk_test javac
+  verify_multijdk_test javadoc
   if [[ $? == 1 ]]; then
     multijdkmode=true
   fi
