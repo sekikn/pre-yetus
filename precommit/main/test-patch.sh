@@ -1970,7 +1970,7 @@ function precheck_javac
         modules_workers branch javac clean compile
       ;;
       ant)
-        modules_workers branch javac javac
+        modules_workers branch javac
       ;;
       *)
         yetus_error "ERROR: Unsupported build tool."
