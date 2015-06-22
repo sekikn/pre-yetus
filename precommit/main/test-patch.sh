@@ -569,7 +569,7 @@ function relative_dir
 {
   local p=${1#${BASEDIR}}
 
-  if [[ ${#p} -eq ${#BINDIR} ]]; then
+  if [[ ${#p} -eq ${#1} ]]; then
     echo "${p}"
     return 1
   fi
