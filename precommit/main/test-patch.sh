@@ -38,6 +38,11 @@ declare -a TP_HEADER
 declare -a TP_VOTE_TABLE
 declare -a TP_TEST_TABLE
 declare -a TP_FOOTER_TABLE
+declare -a MODULE_STATUS
+declare -a MODULE_STATUS_TIMER
+declare -a MODULE_STATUS_MSG
+declare -a MODULE_STATUS_LOG
+declare -a MODULE
 
 ## @description  Setup the default global variables
 ## @audience     public
