@@ -186,5 +186,5 @@ function jira_finalreport
 
   printf "\n\nThis message was automatically generated.\n\n" >> "${commentfile}"
 
-  write_to_jira "${commentfile}"
+  jira_write_comment "${commentfile}"
 }
