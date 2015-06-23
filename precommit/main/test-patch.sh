@@ -55,7 +55,7 @@ function setup_defaults
 
   PROJECT_NAME=yetus
   DOCKERFILE="${BINDIR}/test-patch-docker/Dockerfile-startstub"
-  HOW_TO_CONTRIBUTE="https://dierobotsdie.github.io/yetus/test-patch-names.html"
+  HOW_TO_CONTRIBUTE="https://wiki.apache.org/hadoop/HowToContribute"
   JENKINS=false
   BASEDIR=$(pwd)
   RELOCATE_PATCH_DIR=false
@@ -643,17 +643,17 @@ function testpatch_usage
   echo "Options:"
   echo "--basedir=<dir>        The directory to apply the patch to (default current directory)"
   echo "--branch=<ref>         Forcibly set the branch"
-  echo "--branch-default=<ref> If the branch isn't forced and we don't detect one in the patch name, use this branch (default 'trunk')"
+  echo "--branch-default=<ref> If the branch isn't forced and we don't detect one in the patch name, use this branch (default 'master')"
   #not quite working yet
   #echo "--bugsystem=<type>     The bug system in use ('jira', the default, or 'github')"
   echo "--build-native=<bool>  If true, then build native components (default 'true')"
   echo "--build-tool=<tool>    Pick which build tool to focus around (maven, ant)"
-  echo "--contrib-guide=<url>  URL to point new users towards project conventions. (default Hadoop's wiki)"
+  echo "--contrib-guide=<url>  URL to point new users towards project conventions. (default: ${HOW_TO_CONTRIBUTE} )"
   echo "--debug                If set, then output some extra stuff to stderr"
   echo "--dirty-workspace      Allow the local git workspace to have uncommitted changes"
   echo "--docker               Spawn a docker container"
   echo "--dockerfile=<file>    Dockerfile fragment to use as the base"
-  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default '^(HADOOP|YARN|MAPREDUCE|HDFS)-[0-9]+$')"
+  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default: ${ISSUE_RE})"
   echo "--java-home=<path>     Set JAVA_HOME (In Docker mode, this should be local to the image)"
   echo "--modulelist=<list>    Specify additional modules to test (comma delimited)"
   echo "--offline              Avoid connecting to the Internet"
@@ -668,7 +668,7 @@ function testpatch_usage
   echo "--testlist=<list>      Specify which subsystem tests to use (comma delimited)"
   echo "--test-parallel=<bool> Run multiple tests in parallel (default false in developer mode, true in Jenkins mode)"
   echo "--test-threads=<int>   Number of tests to run in parallel (default defined in ${PROJECT_NAME} build)"
-
+  echo ""
   echo "Shell binary overrides:"
   echo "--ant-cmd=<cmd>        The 'ant' command to use (default \${ANT_HOME}/bin/ant, or 'ant')"
   echo "--awk-cmd=<cmd>        The 'awk' command to use (default 'awk')"
@@ -1048,6 +1048,12 @@ function find_changed_modules
           cleanup_and_exit 1
         fi
         pomdirs="${pomdirs} ${pomdir}"
+      ;;
+      *)
+        yetus_error "ERROR: Unsupported build tool."
+        output_to_console 1
+        output_to_bugsystem 1
+        cleanup_and_exit 1
       ;;
     esac
   done
@@ -1793,6 +1799,7 @@ function modules_workers
           echo "${ANT}" "${ANT_ARGS[@]}" "${MODULEEXTRAPARAM[${i}]}" "${@}"
         ;;
         *)
+          yetus_error "ERROR: Unsupported build tool."
           return 1
         ;;
       esac
@@ -1901,6 +1908,7 @@ function precheck_javac
       modules_workers branch javac
     ;;
     *)
+      yetus_error "ERROR: Unsupported build tool."
       return 1
     ;;
   esac
@@ -1939,6 +1947,7 @@ function precheck_javadoc
       modules_workers branch javadoc clean javadoc
     ;;
     *)
+      yetus_error "ERROR: Unsupported build tool."
       return 1
     ;;
   esac
@@ -2137,14 +2146,12 @@ function count_javac_probs
 ## @return       1 on failure
 function check_patch_javac
 {
-  local numbranch
-  local numpatch
   local i=0
   local result=0
   local fn
   local oldtimer
-  typeset -i numbranch
-  typeset -i numpatch
+  declare -i numbranch=0
+  declare -i numpatch=0
 
   big_console_header "Determining number of patched javac errors"
 
@@ -2164,6 +2171,7 @@ function check_patch_javac
       modules_workers patch javac
     ;;
     *)
+      yetus_error "ERROR: Unsupported build tool."
       return 1
     ;;
   esac
@@ -2255,11 +2263,11 @@ function count_javadoc_probs
 ## @return       1 on failure
 function check_patch_javadoc
 {
-  local numbranch
-  local numpatch
   local i=0
   local result=0
   local fn
+  declare -i numbranch=0
+  declare -i numpatch=0
 
   big_console_header "Determining number of patched javadoc warnings"
 
@@ -2278,6 +2286,7 @@ function check_patch_javadoc
       modules_workers patch javadoc clean javadoc
     ;;
     *)
+      yetus_error "ERROR: Unsupported build tool."
       return 1
     ;;
   esac
@@ -2520,6 +2529,9 @@ function check_unittests
     ;;
     ant)
       modules_workers patch unit
+    ;;
+    *)
+      yetus_error "ERROR: Unsupported build tool."
     ;;
   esac
   result=$?

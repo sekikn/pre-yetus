@@ -361,7 +361,7 @@ function findbugs_postinstall
         add_test_table "" "${firstpart}:${secondpart}"
       done < <("${FINDBUGS_HOME}/bin/convertXmlToText" "${newbugsbase}.xml")
 
-      module_status ${i} -1 "${newbugsbase}.html" "${module} introduced "\
+      module_status ${i} -1 "new-findbugs-${fn}.html" "${module} introduced "\
         "${new_findbugs_warnings} new FindBugs issues."
       ((result=result+1))
     fi
