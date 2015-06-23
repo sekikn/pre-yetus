@@ -15,8 +15,11 @@
 # limitations under the License.
 
 # Make sure that bash version meets the pre-requisite
-if [[ ${BASH_VERSION} < "3.2" ]]; then
-  echo "Bash 3.2+ is required."
+
+if [[ -z "${BASH_VERSINFO}" ]] \
+   || [[ "${BASH_VERSINFO[0]}" -lt 3 ]] \
+   || [[ "${BASH_VERSINFO[0]}" -eq 3 && "${BASH_VERSINFO[1]}" -lt 2 ]]; then
+  echo "bash v3.2+ is required. Sorry."
   exit 1
 fi
 
@@ -624,17 +627,18 @@ function echo_and_redirect
   "${@}" >> "${logfile}" 2>&1
 }
 
-## @description is PATCH_DIR relative to BASEDIR?
+## @description is a given directory relative to BASEDIR?
 ## @audience    public
 ## @stability   stable
 ## @replaceable yes
-## @returns     1 - no, PATCH_DIR
-## @returns     0 - yes, PATCH_DIR - BASEDIR
-function relative_patchdir
+## @param       path
+## @returns     1 - no, path
+## @returns     0 - yes, path - BASEDIR
+function relative_dir
 {
-  local p=${PATCH_DIR#${BASEDIR}}
+  local p=${1#${BASEDIR}}
 
-  if [[ ${#p} -eq ${#PATCH_DIR} ]]; then
+  if [[ ${#p} -eq ${#1} ]]; then
     echo "${p}"
     return 1
   fi
@@ -679,7 +683,7 @@ function docker_launch
   TESTPATCHMODE="--tpdockertimer=${TIMER} ${TESTPATCHMODE}"
 
   export TESTPATCHMODE
-  patchdir=$(relative_patchdir)
+  patchdir=$(relative_dir "${PATCH_DIR}")
   export STARTBINDIR=${BINDIR}
   export PROJECT_NAME
   cd "${BASEDIR}"
@@ -1020,19 +1024,22 @@ function parse_args
 ## @audience     private
 ## @stability    stable
 ## @replaceable  no
-## @return       directory containing the pom.xml
+## @return       directory containing the pom.xml. Nothing returned if not found.
 function find_pomxml_dir
 {
   local dir
 
   dir=$(dirname "$1")
 
-  yetus_debug "Find pomxml dir for: ${dir}"
+  yetus_debug "Find pom.xml dir for: ${dir}"
 
   while builtin true; do
     if [[ -f "${dir}/pom.xml" ]];then
       echo "${dir}"
       yetus_debug "Found: ${dir}"
+      return
+    elif [[ ${dir} == "." ]]; then
+      yetus_error "ERROR: pom.xml is not found. Make sure the target is a Maven-based project."
       return
     else
       dir=$(dirname "${dir}")
@@ -1044,7 +1051,7 @@ function find_pomxml_dir
 ## @audience     private
 ## @stability    stable
 ## @replaceable  no
-## @return       directory containing the build.xml
+## @return       directory containing the build.xml. Nothing returned if not found.
 function find_buildxml_dir
 {
   local dir
@@ -1057,6 +1064,9 @@ function find_buildxml_dir
     if [[ -f "${dir}/build.xml" ]];then
       echo "${dir}"
       yetus_debug "Found: ${dir}"
+      return
+    elif [[ ${dir} == "." ]]; then
+      yetus_error "ERROR: build.xml is not found. Make sure the target is a Ant-based project."
       return
     else
       dir=$(dirname "${dir}")
@@ -1094,6 +1104,7 @@ function find_changed_modules
 {
   # Come up with a list of changed files into ${TMP}
   local pomdirs
+  local pomdir
   local module
   local pommods
 
@@ -1102,11 +1113,23 @@ function find_changed_modules
     case ${BUILDTOOL} in
       maven)
         #shellcheck disable=SC2086
-        pomdirs="${pomdirs} $(find_pomxml_dir ${file})"
+        pomdir=$(find_pomxml_dir ${file})
+        if [[ -z ${pomdir} ]]; then
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
+        fi
+        pomdirs="${pomdirs} ${pomdir}"
       ;;
       ant)
         #shellcheck disable=SC2086
-        pomdirs="${pomdirs} $(find_buildxml_dir ${file})"
+        pomdir=$(find_buildxml_dir ${file})
+        if [[ -z ${pomdir} ]]; then
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
+        fi
+        pomdirs="${pomdirs} ${pomdir}"
       ;;
     esac
   done
@@ -1157,7 +1180,7 @@ function git_checkout
 
     # if PATCH_DIR is in BASEDIR, then we don't want
     # git wiping it out.
-    exemptdir=$(relative_patchdir)
+    exemptdir=$(relative_dir "${PATCH_DIR}")
     if [[ $? == 1 ]]; then
       ${GIT} clean -xdf
     else
@@ -1613,14 +1636,27 @@ function apply_patch_file
 function check_reexec
 {
   local commentfile=${PATCH_DIR}/tp.${RANDOM}
+  local tpdir
+  local copy=false
+  local testdir
+  local person
 
   if [[ ${REEXECED} == true ]]; then
     big_console_header "Re-exec mode detected. Continuing."
     return
   fi
 
-  if [[ ! ${CHANGED_FILES} =~ precommit/test-patch
-      || ${CHANGED_FILES} =~ precommit/smart-apply ]] ; then
+  for testdir in "${BINDIR}" \
+      "${PERSONALITY}" \
+      "${USER_PLUGIN_DIR}"; do
+    tpdir=$(relative_dir "${testdir}")
+    if [[ $? == 0
+        && ${CHANGED_FILES} =~ ${tpdir} ]]; then
+      copy=true
+    fi
+  done
+
+  if [[ ${copy} == false ]]; then
     return
   fi
 
@@ -1638,9 +1674,7 @@ function check_reexec
   apply_patch_file
 
   if [[ ${JENKINS} == true ]]; then
-
     rm "${commentfile}" 2>/dev/null
-
     echo "(!) A patch to test-patch or smart-apply-patch has been detected. " > "${commentfile}"
     echo "Re-executing against the patched versions to perform further tests. " >> "${commentfile}"
     echo "The console is at ${BUILD_URL}console in case of problems." >> "${commentfile}"
@@ -1649,20 +1683,38 @@ function check_reexec
     rm "${commentfile}"
   fi
 
+  # we need to copy/consolidate all the bits that might have changed
+  # that are considered part of test-patch.  This *will* break
+  # things that do includes, but there isn't much we can do about that,
+  # i don't think.
   cd "${STARTINGDIR}"
-  mkdir -p "${PATCH_DIR}/precommit-test"
-  cp -pr "${BASEDIR}"/precommit/test-patch* "${PATCH_DIR}/precommit-test"
-  cp -pr "${BASEDIR}"/precommit/smart-apply* "${PATCH_DIR}/precommit-test"
+  mkdir -p "${PATCH_DIR}/precommit-test/user-plugins"
+  mkdir -p "${PATCH_DIR}/precommit-test/personality"
+  cp -pr "${BINDIR}"/test-patch* "${PATCH_DIR}/precommit-test"
+  cp -pr "${BINDIR}"/smart-apply* "${PATCH_DIR}/precommit-test"
+  if [[ -n "${USER_PLUGIN_DIR}"
+    && -d "${USER_PLUGIN_DIR}"  ]]; then
+    cp -pr "${USER_PLUGIN_DIR}/*" \
+      "${PATCH_DIR}/precommit-test/user-plugins"
+  fi
+  cp -pr "${PERSONALITY}" "${PATCH_DIR}/precommit-test/personality"
+
+  person=$(basename "${PERSONALITY}")
+  person="${PATCH_DIR}/precommit-test/personality/${person}"
 
   big_console_header "exec'ing test-patch.sh now..."
 
+  # now re-exec.  We put these options at the end to act as
+  # overrides.  Very Java-esqe.
   exec "${PATCH_DIR}/precommit-test/test-patch.sh" \
     --reexec \
     --branch="${PATCH_BRANCH}" \
     --patch-dir="${PATCH_DIR}" \
     --tpglobaltimer="${GLOBALTIMER}" \
     --tpreexectimer="${TIMER}" \
-      "${USER_PARAMS[@]}"
+      "${USER_PARAMS[@]}" \
+    --personality="${person}" \
+    --plugins="${PATCH_DIR}/precommit-test/user-plugins"
 }
 
 ## @description  Reset the test results
@@ -1759,7 +1811,6 @@ function modules_messages
     done
   fi
   TIMER=${oldtimer}
-
 }
 
 ## @description  Add a test result
@@ -1867,7 +1918,6 @@ function modules_workers
           "${ANT}" "${ANT_ARGS[@]}" \
           ${MODULEEXTRAPARAM[${modindex}]//@@@MODULEFN@@@/${fn}} \
           "${@//@@@MODULEFN@@@/${fn}}"
-
       ;;
       *)
         yetus_error "ERROR: Unsupported build tool."
@@ -2129,12 +2179,17 @@ function precheck_without_patch
 function check_author
 {
   local authorTags
+  local -r appname=$(basename "${BASH_SOURCE-$0}")
+
+  echo
+  echo ${appname}
+  echo
 
   big_console_header "Checking there are no @author tags in the patch."
 
-  if [[ ${CHANGED_FILES} =~ precommit/test-patch ]]; then
-    echo "Skipping @author checks as test-patch has been patched."
-    add_vote_table 0 @author "Skipping @author checks as test-patch has been patched."
+  if [[ ${CHANGED_FILES} =~ ${appname} ]]; then
+    echo "Skipping @author checks as ${appname} has been patched."
+    add_vote_table 0 @author "Skipping @author checks as ${appname} has been patched."
     return 0
   fi
 
@@ -2886,7 +2941,7 @@ function cleanup_and_exit
     # there is no need to move it since we assume that
     # Jenkins or whatever already knows where it is at
     # since it told us to put it there!
-    relative_patchdir >/dev/null
+    relative_dir "${PATCH_DIR}" >/dev/null
     if [[ $? == 1 ]]; then
       yetus_debug "mv ${PATCH_DIR} ${BASEDIR}"
       mv "${PATCH_DIR}" "${BASEDIR}"
@@ -3038,7 +3093,6 @@ function postinstall
       (( RESULT = RESULT + $? ))
     fi
   done
-
 }
 
 ## @description  Driver to execute _tests routines
@@ -3091,8 +3145,10 @@ function importplugins
   fi
 
   for i in "${files[@]}"; do
-    yetus_debug "Importing ${i}"
-    . "${i}"
+    if [[ -f ${i} ]]; then
+      yetus_debug "Importing ${i}"
+      . "${i}"
+    fi
   done
 
   if [[ -z ${PERSONALITY}
@@ -3100,7 +3156,8 @@ function importplugins
     PERSONALITY="${BINDIR}/personality/${PROJECT_NAME}.sh"
   fi
 
-  if [[ -n ${PERSONALITY} ]]; then
+  if [[ -n ${PERSONALITY}
+     && -f ${PERSONALITY} ]]; then
     yetus_debug "Importing ${PERSONALITY}"
     . "${PERSONALITY}"
   fi

@@ -29,7 +29,7 @@ function fliblib_filefilter
 
   if [[ ${filename} =~ \.java$
     || ${filename} =~ \.scala$
-    || ${filename} =~ \pom.xml$ ]]; then
+    || ${filename} =~ pom.xml$ ]]; then
     add_test flinklib
   fi
 }
