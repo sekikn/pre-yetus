@@ -722,7 +722,7 @@ function testpatch_usage
   echo "--dirty-workspace      Allow the local git workspace to have uncommitted changes"
   echo "--docker               Spawn a docker container"
   echo "--dockerfile=<file>    Dockerfile fragment to use as the base"
-  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default: ${ISSUE_RE})"
+  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default: \'${ISSUE_RE}\')"
   echo "--java-home=<path>     Set JAVA_HOME (In Docker mode, this should be local to the image)"
   echo "--multijdkdirs=<paths> Comma delimited lists of JDK paths to use for multi-JDK tests"
   echo "--multijdktests=<list> Comma delimited tests to use when multijdkdirs is used. (default: javac,javadoc,unit)"
