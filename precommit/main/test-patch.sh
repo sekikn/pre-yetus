@@ -942,19 +942,22 @@ function parse_args
 ## @audience     private
 ## @stability    stable
 ## @replaceable  no
-## @return       directory containing the pom.xml
+## @return       directory containing the pom.xml. Nothing returned if not found.
 function find_pomxml_dir
 {
   local dir
 
   dir=$(dirname "$1")
 
-  yetus_debug "Find pomxml dir for: ${dir}"
+  yetus_debug "Find pom.xml dir for: ${dir}"
 
   while builtin true; do
     if [[ -f "${dir}/pom.xml" ]];then
       echo "${dir}"
       yetus_debug "Found: ${dir}"
+      return
+    elif [[ ${dir} == "." ]]; then
+      yetus_error "ERROR: pom.xml is not found. Make sure the target is a Maven-based project."
       return
     else
       dir=$(dirname "${dir}")
@@ -966,7 +969,7 @@ function find_pomxml_dir
 ## @audience     private
 ## @stability    stable
 ## @replaceable  no
-## @return       directory containing the build.xml
+## @return       directory containing the build.xml. Nothing returned if not found.
 function find_buildxml_dir
 {
   local dir
@@ -979,6 +982,9 @@ function find_buildxml_dir
     if [[ -f "${dir}/build.xml" ]];then
       echo "${dir}"
       yetus_debug "Found: ${dir}"
+      return
+    elif [[ ${dir} == "." ]]; then
+      yetus_error "ERROR: build.xml is not found. Make sure the target is a Ant-based project."
       return
     else
       dir=$(dirname "${dir}")
@@ -1016,6 +1022,7 @@ function find_changed_modules
 {
   # Come up with a list of changed files into ${TMP}
   local pomdirs
+  local pomdir
   local module
   local pommods
 
@@ -1024,11 +1031,23 @@ function find_changed_modules
     case ${BUILDTOOL} in
       maven)
         #shellcheck disable=SC2086
-        pomdirs="${pomdirs} $(find_pomxml_dir ${file})"
+        pomdir=$(find_pomxml_dir ${file})
+        if [[ -z ${pomdir} ]]; then
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
+        fi
+        pomdirs="${pomdirs} ${pomdir}"
       ;;
       ant)
         #shellcheck disable=SC2086
-        pomdirs="${pomdirs} $(find_buildxml_dir ${file})"
+        pomdir=$(find_buildxml_dir ${file})
+        if [[ -z ${pomdir} ]]; then
+          output_to_console 1
+          output_to_bugsystem 1
+          cleanup_and_exit 1
+        fi
+        pomdirs="${pomdirs} ${pomdir}"
       ;;
     esac
   done
