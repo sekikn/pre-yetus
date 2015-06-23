@@ -653,7 +653,7 @@ function testpatch_usage
   echo "--dirty-workspace      Allow the local git workspace to have uncommitted changes"
   echo "--docker               Spawn a docker container"
   echo "--dockerfile=<file>    Dockerfile fragment to use as the base"
-  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default: ${ISSUE_RE})"
+  echo "--issue-re=<expr>      Bash regular expression to use when trying to find a jira ref in the patch name (default: \'${ISSUE_RE}\')"
   echo "--java-home=<path>     Set JAVA_HOME (In Docker mode, this should be local to the image)"
   echo "--modulelist=<list>    Specify additional modules to test (comma delimited)"
   echo "--offline              Avoid connecting to the Internet"
