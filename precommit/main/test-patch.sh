@@ -1432,10 +1432,26 @@ function locate_patch
     else
       ${WGET} -q -O "${PATCH_DIR}/jira" "http://issues.apache.org/jira/browse/${PATCH_OR_ISSUE}"
 
-      if [[ $? != 0 ]];then
-        yetus_error "ERROR: Unable to determine what ${PATCH_OR_ISSUE} may reference."
-        cleanup_and_exit 1
-      fi
+      case $? in
+        0)
+        ;;
+        2)
+          yetus_error "ERROR: .wgetrc/.netrc parsing error."
+          cleanup_and_exit 1
+        ;;
+        3)
+          yetus_error "ERROR: File IO error."
+          cleanup_and_exit 1
+        ;;
+        4)
+          yetus_error "ERROR: URL ${PATCH_OR_ISSUE} is unreachable."
+          cleanup_and_exit 1
+        ;;
+        *)
+          yetus_error "ERROR: Unable to fetch ${PATCH_OR_ISSUE}."
+          cleanup_and_exit 1
+          ;;
+      esac
 
       if [[ $(${GREP} -c 'Patch Available' "${PATCH_DIR}/jira") == 0 ]] ; then
         if [[ ${JENKINS} == true ]]; then
