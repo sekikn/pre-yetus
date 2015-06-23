@@ -2283,7 +2283,7 @@ function count_javac_probs
 ## @return       1 on failure
 function check_patch_javac
 {
-  local i=0
+  local i
   local result=0
   local fn
   local -r savejavahome=${JAVA_HOME}
@@ -2333,6 +2333,7 @@ function check_patch_javac
       ;;
     esac
 
+    i=0
     until [[ ${i} -eq ${#MODULE[@]} ]]; do
       if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
         ((result=result+1))
@@ -2424,7 +2425,7 @@ function count_javadoc_probs
 ## @return       1 on failure
 function check_patch_javadoc
 {
-  local i=0
+  local i
   local result=0
   local fn
   local -r savejavahome=${JAVA_HOME}
@@ -2472,6 +2473,7 @@ function check_patch_javadoc
       ;;
     esac
 
+    i=0
     until [[ ${i} -eq ${#MODULE[@]} ]]; do
       if [[ ${MODULE_STATUS[${i}]} == -1 ]]; then
         ((result=result+1))
@@ -2689,6 +2691,7 @@ function populate_test_table
 ## @return       1 on failure
 function check_unittests
 {
+  local i
   local failed_tests=""
   local test_timeouts=""
   local test_logfile
@@ -2743,6 +2746,7 @@ function check_unittests
       continue
     fi
 
+    i=0
     until [[ $i -eq ${#MODULE[@]} ]]; do
       module=${MODULE[${i}]}
       fn=$(module_file_fragment "${module}")
