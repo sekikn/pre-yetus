@@ -31,6 +31,14 @@ STARTINGDIR=$(pwd)
 USER_PARAMS=("$@")
 GLOBALTIMER=$(date +"%s")
 
+# global arrays
+declare -a MAVEN_ARGS=("--batch-mode")
+declare -a ANT_ARGS=("-noinput")
+declare -a TP_HEADER
+declare -a TP_VOTE_TABLE
+declare -a TP_TEST_TABLE
+declare -a TP_FOOTER_TABLE
+
 ## @description  Setup the default global variables
 ## @audience     public
 ## @stability    stable
@@ -42,16 +50,12 @@ function setup_defaults
   else
     MVN=${MAVEN_HOME}/bin/mvn
   fi
-  # This parameter needs to be kept as an array
-  MAVEN_ARGS=()
 
   if [[ -z "${ANT_HOME:-}" ]]; then
     ANT=ant
   else
     ANT=${ANT_HOME}/bin/ant
   fi
-  # This parameter needs to be kept as an array
-  ANT_ARGS=()
 
   PROJECT_NAME=yetus
   DOCKERFILE="${BINDIR}/test-patch-docker/Dockerfile-startstub"
@@ -108,11 +112,6 @@ function setup_defaults
       FILE=${FILE:-file}
     ;;
   esac
-
-  declare -a TP_HEADER
-  declare -a TP_VOTE_TABLE
-  declare -a TP_TEST_TABLE
-  declare -a TP_FOOTER_TABLE
 
   TP_HEADER_COUNTER=0
   TP_VOTE_COUNTER=0
