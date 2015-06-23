@@ -2044,10 +2044,6 @@ function check_author
   local authorTags
   local -r appname=$(basename "${BASH_SOURCE-$0}")
 
-  echo
-  echo ${appname}
-  echo
-
   big_console_header "Checking there are no @author tags in the patch."
 
   if [[ ${CHANGED_FILES} =~ ${appname} ]]; then
