@@ -31,6 +31,7 @@ STARTINGDIR=$(pwd)
 USER_PARAMS=("$@")
 GLOBALTIMER=$(date +"%s")
 
+# global arrays
 declare -a MAVEN_ARGS=("--batch-mode")
 declare -a ANT_ARGS=("-noinput")
 declare -a TP_HEADER
@@ -2185,10 +2186,6 @@ function check_author
 {
   local authorTags
   local -r appname=$(basename "${BASH_SOURCE-$0}")
-
-  echo
-  echo ${appname}
-  echo
 
   big_console_header "Checking there are no @author tags in the patch."
 
