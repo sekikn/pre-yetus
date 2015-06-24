@@ -107,9 +107,8 @@ function personality_modules
 
   case ${testtype} in
     mvninstall)
-      extra="-DskipTests"
       if [[ ${repostatus} == branch ]]; then
-        personality_enqueue_module . "${extra}"
+        personality_enqueue_module . -DskipTests
         return
       fi
       return
